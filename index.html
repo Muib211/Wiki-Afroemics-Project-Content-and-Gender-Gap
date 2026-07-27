@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AfroDemics Gap Tracker — prototype</title>
+<style>
+  :root{
+    --ink:#1c1b18;
+    --paper:#f7f4ee;
+    --line:#d8d0bf;
+    --ochre:#b3651b;
+    --ochre-deep:#8a4a11;
+    --green:#3f6b4a;
+    --gap-red:#9c3b2e;
+    --mono: "IBM Plex Mono", "SF Mono", Menlo, monospace;
+    --serif: "Newsreader", "Iowan Old Style", Georgia, serif;
+    --sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  @import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:var(--sans); line-height:1.5;
+  }
+  .wrap{max-width:960px; margin:0 auto; padding:48px 24px 96px;}
+
+  header.hero{border-bottom:2px solid var(--ink); padding-bottom:28px; margin-bottom:36px;}
+  .eyebrow{
+    font-family:var(--mono); font-size:12px; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--ochre-deep); margin-bottom:10px;
+  }
+  h1{
+    font-family:var(--serif); font-weight:600; font-size:clamp(32px,5vw,50px);
+    margin:0 0 12px; letter-spacing:-0.01em;
+  }
+  .sub{max-width:620px; color:#4a4740; font-size:15.5px;}
+  .sub em{font-style:italic; color:var(--ink);}
+
+  .panel{
+    border:1px solid var(--line); background:#fffdf9; border-radius:2px;
+    padding:24px; margin-bottom:28px;
+  }
+  .panel h2{
+    font-family:var(--serif); font-size:20px; margin:0 0 4px; font-weight:600;
+  }
+  .panel .hint{font-size:13px; color:#6b675f; margin-bottom:18px;}
+
+  .controls{display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;}
+  label{display:block; font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:#6b675f; margin-bottom:6px;}
+  select, button{
+    font-family:var(--sans); font-size:14.5px; padding:10px 14px;
+    border:1px solid var(--ink); border-radius:2px; background:var(--paper);
+  }
+  select{min-width:240px;}
+  button{
+    background:var(--ochre); color:#fff8ef; border-color:var(--ochre-deep);
+    font-weight:600; cursor:pointer; transition:background .15s;
+  }
+  button:hover{background:var(--ochre-deep);}
+  button:disabled{background:#c8c2b3; border-color:#c8c2b3; cursor:wait;}
+  button:focus-visible, select:focus-visible{outline:3px solid var(--green); outline-offset:2px;}
+
+  .status{font-family:var(--mono); font-size:12.5px; color:#6b675f; margin-top:14px; min-height:18px;}
+  .status.err{color:var(--gap-red);}
+
+  table{width:100%; border-collapse:collapse; font-size:14px; margin-top:6px;}
+  th{
+    text-align:left; font-family:var(--mono); font-size:11px; text-transform:uppercase;
+    letter-spacing:.06em; color:#6b675f; border-bottom:1.5px solid var(--ink); padding:8px 10px;
+  }
+  td{padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:top;}
+  tr:hover td{background:#f1ecdf;}
+  .num{font-family:var(--mono); text-align:right; font-variant-numeric:tabular-nums;}
+  .flag-en, .flag-fr, .flag-local{
+    display:inline-block; width:22px; text-align:center; font-family:var(--mono); font-size:12px;
+  }
+  .yes{color:var(--green); font-weight:700;}
+  .no{color:var(--gap-red); font-weight:700;}
+  .gapcount{font-weight:700; color:var(--gap-red);}
+
+  .name-list{list-style:none; margin:0; padding:0;}
+  .name-list li{
+    padding:10px 0; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:12px;
+  }
+  .name-list li:last-child{border-bottom:none;}
+  .name-list a{color:var(--ochre-deep); text-decoration:none; font-weight:600;}
+  .name-list a:hover{text-decoration:underline;}
+  .name-list .qid{font-family:var(--mono); font-size:12px; color:#8a8578; white-space:nowrap;}
+
+  .empty{font-size:14px; color:#6b675f; padding:20px 0;}
+  .legend{font-size:12.5px; color:#6b675f; margin-top:10px;}
+  .legend .yes{margin:0 3px;}
+
+  footer{margin-top:40px; font-size:12.5px; color:#7a766c; border-top:1px solid var(--line); padding-top:18px;}
+  footer a{color:var(--ochre-deep);}
+  .signature{
+    font-family:var(--serif); font-style:italic; font-size:15px; color:var(--ochre-deep); margin-top:4px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <div class="eyebrow">Wiki AfroDemics Project — working prototype</div>
+    <h1>Where the record thins out</h1>
+    <p class="sub">Every row below is pulled <em>live</em> from Wikidata, on load. No copy, no cache — if someone
+    writes a new article this afternoon, the count changes this afternoon. Pick a country to see who's
+    documented on Wikidata but still has no Wikipedia article at all — in English, French, or the local
+    official-language edition.</p>
+  </header>
+
+  <section class="panel">
+    <h2>Continental overview</h2>
+    <div class="hint">Scientists &amp; academics per country, and how many have zero Wikipedia coverage in English or French.</div>
+    <div class="controls">
+      <button id="loadOverview">Run continental query</button>
+    </div>
+    <div class="status" id="overviewStatus"></div>
+    <div id="overviewTableWrap"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Country detail</h2>
+    <div class="hint">Full breakdown including the country's local official-language Wikipedia, plus the actual names of people missing every article.</div>
+    <div class="controls">
+      <div>
+        <label for="countrySelect">Country</label>
+        <select id="countrySelect"></select>
+      </div>
+      <button id="loadCountry">Run country query</button>
+    </div>
+    <div class="status" id="countryStatus"></div>
+    <div id="countryResult"></div>
+  </section>
+
+  <footer>
+    <div>Data: Wikidata Query Service, queried live via SPARQL. Occupation match: scientist, academic/university
+    teacher, or researcher (<code>P106</code>); nationality via <code>P27</code>. "Local wiki" is an approximate
+    single official-language mapping per country for prototype purposes — several countries (Cameroon, Rwanda,
+    Chad, etc.) have more than one official language and would need a small refinement to check all of them.</div>
+    <div class="signature">— a starting point for the Quarterly Update, built to fork.</div>
+  </footer>
+</div>
+
+<script>
+const ENDPOINT = "https://query.wikidata.org/sparql";
+
+// Approximate: country QID -> { name, local wiki project code }
+// Local code chosen as the single most-used official-language Wikipedia for that country.
+const COUNTRIES = [
+  ["Q262","Algeria","ar"], ["Q916","Angola","pt"], ["Q962","Benin","fr"],
+  ["Q963","Botswana", null], ["Q965","Burkina Faso","fr"], ["Q967","Burundi","fr"],
+  ["Q1011","Cabo Verde","pt"], ["Q1009","Cameroon","fr"], ["Q929","Central African Republic","fr"],
+  ["Q657","Chad","fr"], ["Q970","Comoros","fr"], ["Q971","Republic of the Congo","fr"],
+  ["Q974","DR Congo","fr"], ["Q977","Djibouti","fr"], ["Q79","Egypt","ar"],
+  ["Q983","Equatorial Guinea","es"], ["Q986","Eritrea", null], ["Q1050","Eswatini", null],
+  ["Q115","Ethiopia","am"], ["Q1000","Gabon","fr"], ["Q1005","Gambia", null],
+  ["Q117","Ghana", null], ["Q1006","Guinea","fr"], ["Q1007","Guinea-Bissau","pt"],
+  ["Q1008","Ivory Coast","fr"], ["Q114","Kenya","sw"], ["Q1013","Lesotho", null],
+  ["Q1014","Liberia", null], ["Q1016","Libya","ar"], ["Q1019","Madagascar","mg"],
+  ["Q1020","Malawi", null], ["Q912","Mali","fr"], ["Q1025","Mauritania","ar"],
+  ["Q1027","Mauritius", null], ["Q1028","Morocco","ar"], ["Q1029","Mozambique","pt"],
+  ["Q1030","Namibia", null], ["Q1032","Niger","fr"], ["Q1033","Nigeria", null],
+  ["Q1037","Rwanda","rw"], ["Q1039","Sao Tome and Principe","pt"], ["Q1041","Senegal","fr"],
+  ["Q1042","Seychelles", null], ["Q1044","Sierra Leone", null], ["Q1045","Somalia","so"],
+  ["Q258","South Africa", null], ["Q958","South Sudan", null], ["Q1049","Sudan","ar"],
+  ["Q924","Tanzania","sw"], ["Q945","Togo","fr"], ["Q948","Tunisia","ar"],
+  ["Q1036","Uganda", null], ["Q953","Zambia", null], ["Q954","Zimbabwe", null]
+].sort((a,b)=>a[1].localeCompare(b[1]));
+
+function el(tag, attrs={}, ...children){
+  const n = document.createElement(tag);
+  for(const k in attrs) n.setAttribute(k, attrs[k]);
+  children.forEach(c => n.appendChild(typeof c === "string" ? document.createTextNode(c) : c));
+  return n;
+}
+
+async function runSparql(query){
+  const url = ENDPOINT + "?query=" + encodeURIComponent(query) + "&format=json";
+  const resp = await fetch(url, { headers: { "Accept": "application/sparql-results+json" }});
+  if(!resp.ok) throw new Error("Wikidata returned status " + resp.status);
+  return resp.json();
+}
+
+// ---------- Country dropdown ----------
+const countrySelect = document.getElementById("countrySelect");
+COUNTRIES.forEach(([qid, name]) => {
+  countrySelect.appendChild(el("option", {value: qid}, name));
+});
+
+// ---------- Continental overview ----------
+document.getElementById("loadOverview").addEventListener("click", loadOverview);
+
+async function loadOverview(){
+  const btn = document.getElementById("loadOverview");
+  const status = document.getElementById("overviewStatus");
+  const out = document.getElementById("overviewTableWrap");
+  btn.disabled = true;
+  status.textContent = "Querying Wikidata for all African countries — this scans a lot of people, allow 20–40s…";
+  status.classList.remove("err");
+  out.innerHTML = "";
+
+  const countryValues = COUNTRIES.map(c => "wd:"+c[0]).join(" ");
+  const query = `
+    SELECT ?country (SAMPLE(?countryLabel) AS ?label) (COUNT(DISTINCT ?person) AS ?total)
+           (COUNT(DISTINCT ?enArticle) AS ?withEn) (COUNT(DISTINCT ?frArticle) AS ?withFr)
+    WHERE {
+      VALUES ?country { ${countryValues} }
+      ?person wdt:P27 ?country.
+      VALUES ?occ { wd:Q901 wd:Q3400985 wd:Q1622272 wd:Q1650915 }
+      ?person wdt:P106 ?occ.
+      OPTIONAL { ?enArticle schema:about ?person; schema:isPartOf <https://en.wikipedia.org/>. }
+      OPTIONAL { ?frArticle schema:about ?person; schema:isPartOf <https://fr.wikipedia.org/>. }
+      ?country rdfs:label ?countryLabel. FILTER(LANG(?countryLabel)="en")
+    }
+    GROUP BY ?country
+    ORDER BY DESC(?total)
+  `;
+
+  try{
+    const data = await runSparql(query);
+    status.textContent = `Done. ${data.results.bindings.length} countries returned.`;
+    renderOverview(data.results.bindings, out);
+  }catch(e){
+    status.textContent = "Query failed: " + e.message + ". Wikidata's public endpoint can time out on broad continental scans — try again, or narrow to country detail below.";
+    status.classList.add("err");
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+function renderOverview(rows, out){
+  if(!rows.length){ out.innerHTML = '<div class="empty">No results.</div>'; return; }
+  const table = el("table");
+  const thead = el("tr",{},
+    el("th",{},"Country"), el("th",{},"Total"), el("th",{},"With EN"),
+    el("th",{},"With FR"), el("th",{},"Gap (no EN, no FR)")
+  );
+  table.appendChild(el("thead",{},thead));
+  const tbody = el("tbody");
+  rows.forEach(r => {
+    const total = parseInt(r.total.value,10);
+    const withEn = parseInt(r.withEn.value,10);
+    const withFr = parseInt(r.withFr.value,10);
+    // Note: this is an approximation of the gap at the continental level (doesn't OR en/fr per-person,
+    // just compares aggregate counts) — country detail view below does the precise per-person check.
+    const roughGap = Math.max(0, total - Math.max(withEn, withFr));
+    tbody.appendChild(el("tr",{},
+      el("td",{}, r.label.value),
+      el("td",{class:"num"}, String(total)),
+      el("td",{class:"num"}, String(withEn)),
+      el("td",{class:"num"}, String(withFr)),
+      el("td",{class:"num gapcount"}, "≥ " + String(roughGap))
+    ));
+  });
+  table.appendChild(tbody);
+  out.innerHTML = "";
+  out.appendChild(table);
+  out.appendChild(el("div",{class:"legend"},
+    "Gap column is a floor estimate at this aggregate level — the country detail panel below computes the exact per-person gap, including the local-language wiki."
+  ));
+}
+
+// ---------- Country detail ----------
+document.getElementById("loadCountry").addEventListener("click", loadCountry);
+
+async function loadCountry(){
+  const btn = document.getElementById("loadCountry");
+  const status = document.getElementById("countryStatus");
+  const out = document.getElementById("countryResult");
+  const qid = countrySelect.value;
+  const meta = COUNTRIES.find(c => c[0]===qid);
+  const localCode = meta[2];
+
+  btn.disabled = true;
+  status.textContent = `Querying Wikidata for ${meta[1]}…`;
+  status.classList.remove("err");
+  out.innerHTML = "";
+
+  const localOptional = localCode
+    ? `OPTIONAL { ?localArticle schema:about ?person; schema:isPartOf <https://${localCode}.wikipedia.org/>. }`
+    : "";
+
+  const query = `
+    SELECT ?person ?personLabel ?enArticle ?frArticle ?localArticle
+    WHERE {
+      ?person wdt:P27 wd:${qid}.
+      VALUES ?occ { wd:Q901 wd:Q3400985 wd:Q1622272 wd:Q1650915 }
+      ?person wdt:P106 ?occ.
+      OPTIONAL { ?enArticle schema:about ?person; schema:isPartOf <https://en.wikipedia.org/>. }
+      OPTIONAL { ?frArticle schema:about ?person; schema:isPartOf <https://fr.wikipedia.org/>. }
+      ${localOptional}
+      SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+    }
+    LIMIT 2000
+  `;
+
+  try{
+    const data = await runSparql(query);
+    status.textContent = `Done. ${data.results.bindings.length} people found for ${meta[1]}.`;
+    renderCountry(data.results.bindings, meta, out);
+  }catch(e){
+    status.textContent = "Query failed: " + e.message;
+    status.classList.add("err");
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+function renderCountry(rows, meta, out){
+  out.innerHTML = "";
+  if(!rows.length){
+    out.appendChild(el("div",{class:"empty"}, `No matching Wikidata items found for ${meta[1]}.`));
+    return;
+  }
+
+  const total = rows.length;
+  const withEn = rows.filter(r => r.enArticle).length;
+  const withFr = rows.filter(r => r.frArticle).length;
+  const withLocal = rows.filter(r => r.localArticle).length;
+  const gapPeople = rows.filter(r => !r.enArticle && !r.frArticle && !r.localArticle);
+
+  const summary = el("table");
+  summary.appendChild(el("tbody",{},
+    el("tr",{}, el("td",{},"Total on Wikidata"), el("td",{class:"num"}, String(total))),
+    el("tr",{}, el("td",{},"With English article"), el("td",{class:"num"}, String(withEn))),
+    el("tr",{}, el("td",{},"With French article"), el("td",{class:"num"}, String(withFr))),
+    el("tr",{}, el("td",{}, meta[2] ? `With ${meta[2]}.wikipedia article (local)` : "Local official-language wiki not set for this country"),
+        el("td",{class:"num"}, meta[2] ? String(withLocal) : "—")),
+    el("tr",{}, el("td",{}, el("strong",{},"No article in EN, FR, or local — total gap")),
+        el("td",{class:"num gapcount"}, String(gapPeople.length)))
+  ));
+  out.appendChild(summary);
+
+  out.appendChild(el("h2",{style:"margin-top:24px;"}, `People with no Wikipedia article (${gapPeople.length})`));
+  if(!gapPeople.length){
+    out.appendChild(el("div",{class:"empty"}, "No gap — everyone in this list already has coverage in at least one of the checked languages. 🎉"));
+    return;
+  }
+  const list = el("ul",{class:"name-list"});
+  gapPeople.forEach(r => {
+    const qid = r.person.value.split("/").pop();
+    const name = r.personLabel ? r.personLabel.value : qid;
+    list.appendChild(el("li",{},
+      el("a",{href:r.person.value, target:"_blank", rel:"noopener"}, name),
+      el("span",{class:"qid"}, qid)
+    ));
+  });
+  out.appendChild(list);
+}
+</script>
+</body>
+</html>
