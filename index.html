@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Wiki AfroDemics — Gap Tracker</title>
+<title>Wiki AfroDemics — Content &amp; Gender Gap Tracker</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
@@ -172,14 +172,17 @@
 
 <div class="wrap">
   <section class="hero">
-    <div class="eyebrow">Working prototype — companion to the Quarterly Update</div>
-    <h1 class="title">Where the record thins out</h1>
-    <p class="sub">Every figure below is pulled <em>live</em> from Wikidata, on load and again every few minutes —
-      no copy, no cache. If someone writes a new article this afternoon, the count moves this afternoon.</p>
-    <p class="sub">Pick a country to see who's documented on Wikidata but still has no Wikipedia article at all —
-      in English, French, or the local official-language edition — broken down honestly by gender.</p>
-    <p class="companion">Part of the <a href="https://meta.wikimedia.org/wiki/Wiki_AfroDemics_Project/Quarterly_Update" target="_blank" rel="noopener">Wiki AfroDemics Project</a>
-      — this tool is a live companion to the project's official Quarterly Update on Meta-Wiki, which remains the canonical record.</p>
+    <div class="eyebrow">Wiki AfroDemics Project — Content &amp; Gender Gap Tracker</div>
+    <h1 class="title">Make the record even</h1>
+    <p class="sub">Curating knowledge. Amplifying African voices. Driving equitable visibility — that's the Wiki
+      AfroDemics Project's mission, and this tool is how it's measured. Every figure below is pulled
+      <em>live</em> from Wikidata, on load and again every few minutes — no copy, no cache. Write a new article
+      this afternoon, and the count moves this afternoon.</p>
+    <p class="sub">Pick a country to see exactly who's documented on Wikidata but still has no Wikipedia article
+      at all — in English, French, or the local official-language edition — and where the gender gap the project
+      was built to close is widest.</p>
+    <p class="companion">Built for the <a href="https://meta.wikimedia.org/wiki/Wiki_AfroDemics_Project/Quarterly_Update" target="_blank" rel="noopener">Wiki AfroDemics Project</a>
+      as the live counterpart to its official Quarterly Update on Meta-Wiki, which remains the canonical record.</p>
 
     <div class="ledger" id="ledger">
       <div class="cell"><div class="num" id="statPeople">—</div><div class="lab">Wikidata items <span class="g">· scientists &amp; academics</span></div></div>
@@ -198,9 +201,9 @@
     <h2>Continental overview</h2>
     <div class="hint">Scientists &amp; academics per country, article coverage in English and French, and the gender split — refreshed automatically.</div>
     <div class="fix-note">
-      <b>Why this used to time out:</b> the old version joined all 54 countries in one giant SPARQL query, so nothing
-      appeared until the whole thing finished — or failed. This version fires 54 small, single-country queries,
-      a few at a time, and streams each row in the moment it lands.
+      <b>How this stays fast:</b> instead of one giant SPARQL query joining all 54 countries, this fires 54 small,
+      single-country queries, a few at a time, and streams each row in the moment it lands — so the table fills in
+      live instead of making you wait on the slowest country.
     </div>
     <div class="controls">
       <button id="loadOverview">Refresh continental data</button>
@@ -233,10 +236,10 @@
     </svg>
     <div>Data: Wikidata Query Service, queried live via SPARQL, 54 countries in parallel. Occupation match: scientist,
     academic/university teacher, or researcher (<code>P106</code>); nationality via <code>P27</code>; gender via <code>P21</code>.
-    "Local wiki" is an approximate single official-language mapping per country for prototype purposes — several
+    "Local wiki" is an approximate single official-language mapping per country for now — several
     countries (Cameroon, Rwanda, Chad, etc.) have more than one official language and would need a small refinement
     to check all of them.</div>
-    <div class="signature">— a starting point for the Quarterly Update, built to fork.</div>
+    <div class="signature">— built for the Wiki AfroDemics Project, to make the invisible, visible.</div>
   </footer>
 </div>
 
@@ -321,39 +324,55 @@ const countrySelect = document.getElementById("countrySelect");
 COUNTRIES.forEach(([qid, name]) => countrySelect.appendChild(el("option", {value: qid}, name)));
 
 // ---------- per-country query (used by continental overview + live stats) ----------
+// One row per person, computed *inside* the subquery via GROUP BY, before anything
+// gets counted. Doing it this way — rather than SAMPLE-ing one gender value per
+// person — means someone with both a "male" and a "female" statement on Wikidata
+// is correctly counted in *both* buckets, instead of collapsing to whichever value
+// SPARQL happened to sample first (which is where countries were showing phantom
+// "other" mass for people who are actually tagged male and female).
 function countryQuery(qid, localCode){
   const localOptional = localCode
-    ? `OPTIONAL { ?localArticle schema:about ?person; schema:isPartOf <https://${localCode}.wikipedia.org/>. }`
+    ? `OPTIONAL { ?loc schema:about ?person; schema:isPartOf <https://${localCode}.wikipedia.org/>. }`
     : "";
   return `
-    SELECT (COUNT(DISTINCT ?person) AS ?total)
-           (COUNT(DISTINCT ?enArticle) AS ?withEn)
-           (COUNT(DISTINCT ?frArticle) AS ?withFr)
-           (COUNT(DISTINCT ?localArticle) AS ?withLocal)
-           (SUM(IF(?genderSample = <${MALE}>, 1, 0)) AS ?men)
-           (SUM(IF(?genderSample = <${FEMALE}>, 1, 0)) AS ?women)
+    SELECT (COUNT(?person) AS ?total)
+           (SUM(?hasEn) AS ?withEn)
+           (SUM(?hasFr) AS ?withFr)
+           (SUM(?hasLocal) AS ?withLocal)
+           (SUM(?isMale) AS ?men)
+           (SUM(?isFemale) AS ?women)
+           (SUM(?isMale * ?isFemale) AS ?both)
     WHERE {
-      {
-        SELECT ?person (SAMPLE(?g) AS ?genderSample) WHERE {
-          ?person wdt:P27 wd:${qid}.
-          VALUES ?occ { wd:Q901 wd:Q3400985 wd:Q1622272 wd:Q1650915 }
-          ?person wdt:P106 ?occ.
-          OPTIONAL { ?person wdt:P21 ?g. }
-        } GROUP BY ?person
+      SELECT ?person
+             (MAX(IF(BOUND(?en), 1, 0)) AS ?hasEn)
+             (MAX(IF(BOUND(?fr), 1, 0)) AS ?hasFr)
+             (MAX(IF(BOUND(?loc), 1, 0)) AS ?hasLocal)
+             (MAX(IF(?g = <${MALE}>, 1, 0)) AS ?isMale)
+             (MAX(IF(?g = <${FEMALE}>, 1, 0)) AS ?isFemale)
+      WHERE {
+        ?person wdt:P27 wd:${qid}.
+        VALUES ?occ { wd:Q901 wd:Q3400985 wd:Q1622272 wd:Q1650915 }
+        ?person wdt:P106 ?occ.
+        OPTIONAL { ?person wdt:P21 ?g. }
+        OPTIONAL { ?en schema:about ?person; schema:isPartOf <https://en.wikipedia.org/>. }
+        OPTIONAL { ?fr schema:about ?person; schema:isPartOf <https://fr.wikipedia.org/>. }
+        ${localOptional}
       }
-      OPTIONAL { ?enArticle schema:about ?person; schema:isPartOf <https://en.wikipedia.org/>. }
-      OPTIONAL { ?frArticle schema:about ?person; schema:isPartOf <https://fr.wikipedia.org/>. }
-      ${localOptional}
+      GROUP BY ?person
     }
   `;
 }
 
 function parseCountryResult(binding){
   const g = k => parseInt(binding[k]?.value ?? "0", 10);
-  const total = g("total"), men = g("men"), women = g("women");
+  const total = g("total"), men = g("men"), women = g("women"), both = g("both");
+  // Distinct people covered by a male-or-female statement (accounting for the
+  // handful tagged as both, via `both`) — everyone else is genuinely "other":
+  // intersex, trans-specific, or no gender statement recorded at all.
+  const coveredByMOrF = men + women - both;
   return {
     total, withEn: g("withEn"), withFr: g("withFr"), withLocal: g("withLocal"),
-    men, women, other: Math.max(0, total - men - women)
+    men, women, other: Math.max(0, total - coveredByMOrF)
   };
 }
 
@@ -535,26 +554,30 @@ function detailQuery(qid, localCode){
   `;
 }
 
-function genderTag(qid){
-  if(qid === MALE) return {cls:"men", label:"Man"};
-  if(qid === FEMALE) return {cls:"women", label:"Woman"};
+function genderTag(p){
+  if(p.isMale && p.isFemale) return {cls:"other", label:"Man &amp; woman (dual-tagged)"};
+  if(p.isMale) return {cls:"men", label:"Man"};
+  if(p.isFemale) return {cls:"women", label:"Woman"};
   return {cls:"other", label:"Other / unspecified"};
 }
 
-// De-duplicate rows per person (a person can appear more than once if they
-// have several optional matches) and OR their article/gender flags together.
+// De-duplicate rows per person (a person can appear more than once if they have
+// several optional matches, or more than one P21 statement) and OR their flags
+// together — this is what lets someone tagged both male and female show as both,
+// instead of silently collapsing to whichever row SPARQL happened to return first.
 function dedupePeople(rows){
   const byPerson = new Map();
   rows.forEach(r => {
     const id = r.person.value;
     const existing = byPerson.get(id) || {
       person: r.person, personLabel: r.personLabel,
-      hasEn: false, hasFr: false, hasLocal: false, gender: null
+      hasEn: false, hasFr: false, hasLocal: false, isMale: false, isFemale: false
     };
     if(r.enArticle) existing.hasEn = true;
     if(r.frArticle) existing.hasFr = true;
     if(r.localArticle) existing.hasLocal = true;
-    if(r.gender && !existing.gender) existing.gender = r.gender.value;
+    if(r.gender && r.gender.value === MALE) existing.isMale = true;
+    if(r.gender && r.gender.value === FEMALE) existing.isFemale = true;
     byPerson.set(id, existing);
   });
   return Array.from(byPerson.values());
@@ -594,9 +617,9 @@ function renderCountry(people, meta, out){
   const withEn = people.filter(p => p.hasEn).length;
   const withFr = people.filter(p => p.hasFr).length;
   const withLocal = people.filter(p => p.hasLocal).length;
-  const men = people.filter(p => p.gender === MALE).length;
-  const women = people.filter(p => p.gender === FEMALE).length;
-  const other = total - men - women;
+  const men = people.filter(p => p.isMale).length;
+  const women = people.filter(p => p.isFemale).length;
+  const other = people.filter(p => !p.isMale && !p.isFemale).length;
   const gapPeople = people.filter(p => !p.hasEn && !p.hasFr && !p.hasLocal);
 
   const summary = el("table");
@@ -622,10 +645,12 @@ function renderCountry(people, meta, out){
   gapPeople.forEach(p => {
     const qid = p.person.value.split("/").pop();
     const name = p.personLabel ? p.personLabel.value : qid;
-    const g = genderTag(p.gender);
+    const g = genderTag(p);
+    const tagEl = el("span",{class:"tag "+g.cls});
+    tagEl.innerHTML = g.label;
     list.appendChild(el("li",{},
       el("a",{href:p.person.value, target:"_blank", rel:"noopener"}, name),
-      el("span",{class:"meta"}, el("span",{class:"tag "+g.cls}, g.label), el("span",{class:"qid"}, qid))
+      el("span",{class:"meta"}, tagEl, el("span",{class:"qid"}, qid))
     ));
   });
   out.appendChild(list);
