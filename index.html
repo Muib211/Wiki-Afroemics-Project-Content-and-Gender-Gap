@@ -3,133 +3,224 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AfroDemics Gap Tracker — prototype</title>
+<title>Wiki AfroDemics — Gap Tracker</title>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
   :root{
-    --ink:#1c1b18;
-    --paper:#f7f4ee;
-    --line:#d8d0bf;
-    --ochre:#b3651b;
-    --ochre-deep:#8a4a11;
-    --green:#3f6b4a;
-    --gap-red:#9c3b2e;
+    --navy:        #1b2a4a;   /* brand navy, taken from the project's own pill nav */
+    --navy-deep:    #10182c;
+    --navy-mid:     #2c3f68;
+    --navy-pale:    #eef1f8;   /* brand chip background */
+    --paper:        #faf9f5;
+    --paper-raised: #ffffff;
+    --ink:          #1a1f2e;
+    --ink-soft:     #565f74;
+    --line:         #dfe2ee;
+    --gold:         #b8863c;
+    --gold-deep:    #8e6423;
+    --gold-pale:    #f3e6cb;
+    --ok:           #2f6b4f;
+    --gap:          #a23e3e;
+    --women:        #9c4f6e;
+    --men:          #2c5c8a;
+    --other:        #b8863c;
     --mono: "IBM Plex Mono", "SF Mono", Menlo, monospace;
-    --serif: "Newsreader", "Iowan Old Style", Georgia, serif;
+    --serif: "Fraunces", "Iowan Old Style", Georgia, serif;
     --sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
   }
-  @import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
-
   *{box-sizing:border-box;}
-  body{
-    margin:0; background:var(--paper); color:var(--ink);
-    font-family:var(--sans); line-height:1.5;
-  }
-  .wrap{max-width:960px; margin:0 auto; padding:48px 24px 96px;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:var(--sans); line-height:1.5; -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1040px; margin:0 auto; padding:0 24px 96px;}
+  a{color:var(--gold-deep);}
+  code{background:var(--navy-pale); color:var(--navy); padding:1px 6px; border-radius:3px; font-size:.92em;}
 
-  header.hero{border-bottom:2px solid var(--ink); padding-bottom:28px; margin-bottom:36px;}
-  .eyebrow{
-    font-family:var(--mono); font-size:12px; letter-spacing:.12em; text-transform:uppercase;
-    color:var(--ochre-deep); margin-bottom:10px;
+  /* ---------- signature ribbon (woven, one motif, used twice) ---------- */
+  .ribbon{display:block; width:100%; height:14px;}
+  .ribbon-top{margin-top:0;}
+
+  /* ---------- masthead ---------- */
+  header.masthead{background:var(--navy); color:#fff;}
+  .masthead-inner{max-width:1040px; margin:0 auto; padding:22px 24px 26px; display:flex; align-items:center; gap:16px; flex-wrap:wrap;}
+  .brandmark{display:flex; align-items:center; gap:14px; flex:1 1 320px;}
+  .brandmark img, .brandmark .fallback-logo{width:52px; height:52px; border-radius:50%; flex-shrink:0; background:#fff; object-fit:cover; box-shadow:0 0 0 2px var(--gold);}
+  .brandmark .word{display:flex; flex-direction:column;}
+  .brandmark .word .wap{font-family:var(--mono); font-size:11px; letter-spacing:.14em; color:var(--gold-pale); text-transform:uppercase;}
+  .brandmark .word h1{font-family:var(--serif); font-size:21px; font-weight:600; margin:2px 0 0; letter-spacing:-0.01em;}
+  nav.pills{display:flex; gap:8px; flex-wrap:wrap;}
+  nav.pills a{
+    background:var(--navy-pale); color:var(--navy); padding:8px 15px; border-radius:20px;
+    font-weight:600; font-size:12.5px; text-decoration:none; white-space:nowrap;
+    transition:background .15s, color .15s;
   }
-  h1{
-    font-family:var(--serif); font-weight:600; font-size:clamp(32px,5vw,50px);
-    margin:0 0 12px; letter-spacing:-0.01em;
-  }
-  .sub{max-width:620px; color:#4a4740; font-size:15.5px;}
+  nav.pills a:hover{background:var(--gold); color:#fff;}
+  nav.pills a.current{background:var(--gold); color:#fff;}
+
+  /* ---------- hero ---------- */
+  .hero{padding:40px 0 8px;}
+  .eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--gold-deep); margin-bottom:10px; font-weight:600;}
+  h1.title{font-family:var(--serif); font-weight:600; font-size:clamp(30px,4.4vw,46px); margin:0 0 14px; letter-spacing:-0.015em; color:var(--navy);}
+  .sub{max-width:660px; color:var(--ink-soft); font-size:15.5px;}
   .sub em{font-style:italic; color:var(--ink);}
+  .sub + .sub{margin-top:10px;}
+  .companion{margin-top:16px; font-size:13.5px; color:var(--ink-soft);}
 
-  .panel{
-    border:1px solid var(--line); background:#fffdf9; border-radius:2px;
-    padding:24px; margin-bottom:28px;
+  /* ---------- live ledger (stat strip) ---------- */
+  .ledger{
+    margin:30px 0 6px; border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
   }
-  .panel h2{
-    font-family:var(--serif); font-size:20px; margin:0 0 4px; font-weight:600;
-  }
-  .panel .hint{font-size:13px; color:#6b675f; margin-bottom:18px;}
+  .ledger .cell{padding:18px 20px; border-left:1px solid var(--line);}
+  .ledger .cell:first-child{border-left:none;}
+  .ledger .num{font-family:var(--mono); font-size:28px; font-weight:600; color:var(--navy); font-variant-numeric:tabular-nums; line-height:1;}
+  .ledger .num .unit{font-size:13px; color:var(--ink-soft); font-weight:400; margin-left:2px;}
+  .ledger .lab{font-family:var(--mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-soft); margin-top:7px;}
+  .ledger .lab .g{color:var(--gold-deep);}
+  .live-row{display:flex; align-items:center; gap:8px; font-family:var(--mono); font-size:11.5px; color:var(--ink-soft); margin:12px 2px 0;}
+  .live-dot{width:7px; height:7px; border-radius:50%; background:var(--ok); box-shadow:0 0 0 0 rgba(47,107,79,.6); animation:pulse 2.4s infinite;}
+  .live-dot.stale{background:#b8b2a2; animation:none;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(47,107,79,.5);}70%{box-shadow:0 0 0 7px rgba(47,107,79,0);}100%{box-shadow:0 0 0 0 rgba(47,107,79,0);}}
+  @media (prefers-reduced-motion: reduce){ .live-dot{animation:none;} }
+
+  /* ---------- panels ---------- */
+  .panel{border:1px solid var(--line); background:var(--paper-raised); border-radius:3px; padding:26px; margin:26px 0;}
+  .panel h2{font-family:var(--serif); font-size:21px; margin:0 0 4px; font-weight:600; color:var(--navy);}
+  .panel .hint{font-size:13px; color:var(--ink-soft); margin-bottom:18px; max-width:680px;}
+  .fix-note{background:var(--navy-pale); border-left:3px solid var(--navy); padding:10px 14px; font-size:12.5px; color:var(--navy); border-radius:2px; margin-bottom:18px; max-width:680px;}
+  .fix-note b{color:var(--navy-deep);}
 
   .controls{display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;}
-  label{display:block; font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:#6b675f; margin-bottom:6px;}
-  select, button{
-    font-family:var(--sans); font-size:14.5px; padding:10px 14px;
-    border:1px solid var(--ink); border-radius:2px; background:var(--paper);
-  }
-  select{min-width:240px;}
-  button{
-    background:var(--ochre); color:#fff8ef; border-color:var(--ochre-deep);
-    font-weight:600; cursor:pointer; transition:background .15s;
-  }
-  button:hover{background:var(--ochre-deep);}
-  button:disabled{background:#c8c2b3; border-color:#c8c2b3; cursor:wait;}
-  button:focus-visible, select:focus-visible{outline:3px solid var(--green); outline-offset:2px;}
+  label{display:block; font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-soft); margin-bottom:6px;}
+  select, button{font-family:var(--sans); font-size:14.5px; padding:10px 14px; border:1px solid var(--navy); border-radius:2px; background:#fff; color:var(--ink);}
+  select{min-width:230px;}
+  button{background:var(--gold); color:#fff; border-color:var(--gold-deep); font-weight:600; cursor:pointer; transition:background .15s;}
+  button:hover{background:var(--gold-deep);}
+  button.ghost{background:#fff; color:var(--navy); border-color:var(--navy);}
+  button.ghost:hover{background:var(--navy-pale);}
+  button:disabled{background:#cfc9ba; border-color:#cfc9ba; cursor:wait;}
+  button:focus-visible, select:focus-visible{outline:3px solid var(--gold); outline-offset:2px;}
 
-  .status{font-family:var(--mono); font-size:12.5px; color:#6b675f; margin-top:14px; min-height:18px;}
-  .status.err{color:var(--gap-red);}
+  .status{font-family:var(--mono); font-size:12.5px; color:var(--ink-soft); margin-top:14px; min-height:18px;}
+  .status.err{color:var(--gap);}
+  .progressbar{height:4px; background:var(--navy-pale); border-radius:2px; margin-top:10px; overflow:hidden;}
+  .progressbar > div{height:100%; background:var(--gold); width:0%; transition:width .25s ease;}
 
-  table{width:100%; border-collapse:collapse; font-size:14px; margin-top:6px;}
-  th{
-    text-align:left; font-family:var(--mono); font-size:11px; text-transform:uppercase;
-    letter-spacing:.06em; color:#6b675f; border-bottom:1.5px solid var(--ink); padding:8px 10px;
-  }
-  td{padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:top;}
-  tr:hover td{background:#f1ecdf;}
+  table{width:100%; border-collapse:collapse; font-size:13.5px; margin-top:14px;}
+  th{text-align:left; font-family:var(--mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); border-bottom:1.5px solid var(--navy); padding:8px 9px;}
+  td{padding:8px 9px; border-bottom:1px solid var(--line); vertical-align:middle;}
+  tr.pending td{color:#b3ac9c; font-style:italic;}
+  tr.error td{color:var(--gap);}
+  tr:hover td{background:var(--navy-pale);}
   .num{font-family:var(--mono); text-align:right; font-variant-numeric:tabular-nums;}
-  .flag-en, .flag-fr, .flag-local{
-    display:inline-block; width:22px; text-align:center; font-family:var(--mono); font-size:12px;
-  }
-  .yes{color:var(--green); font-weight:700;}
-  .no{color:var(--gap-red); font-weight:700;}
-  .gapcount{font-weight:700; color:var(--gap-red);}
+  .gapcount{font-weight:700; color:var(--gap);}
+  .retry{font-family:var(--mono); font-size:11px; color:var(--gold-deep); background:none; border:none; padding:0; text-decoration:underline; cursor:pointer;}
+
+  .genderbar{display:flex; width:76px; height:9px; border-radius:2px; overflow:hidden; background:var(--line); margin-left:auto;}
+  .genderbar span{display:block; height:100%;}
+  .gb-men{background:var(--men);} .gb-women{background:var(--women);} .gb-other{background:var(--other);}
+  .gender-legend{display:flex; gap:14px; font-size:12px; color:var(--ink-soft); margin-top:12px; flex-wrap:wrap;}
+  .gender-legend .sw{display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:5px; vertical-align:middle;}
 
   .name-list{list-style:none; margin:0; padding:0;}
-  .name-list li{
-    padding:10px 0; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:12px;
-  }
+  .name-list li{padding:10px 0; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:12px; align-items:center;}
   .name-list li:last-child{border-bottom:none;}
-  .name-list a{color:var(--ochre-deep); text-decoration:none; font-weight:600;}
-  .name-list a:hover{text-decoration:underline;}
-  .name-list .qid{font-family:var(--mono); font-size:12px; color:#8a8578; white-space:nowrap;}
+  .name-list a{color:var(--navy); text-decoration:none; font-weight:600;}
+  .name-list a:hover{text-decoration:underline; color:var(--gold-deep);}
+  .name-list .meta{display:flex; align-items:center; gap:10px; white-space:nowrap;}
+  .tag{font-family:var(--mono); font-size:10.5px; padding:2px 7px; border-radius:10px; text-transform:uppercase; letter-spacing:.04em;}
+  .tag.men{background:#e4ecf5; color:var(--men);} .tag.women{background:#f4e6ec; color:var(--women);} .tag.other{background:var(--gold-pale); color:var(--gold-deep);}
+  .name-list .qid{font-family:var(--mono); font-size:11.5px; color:#9a947f;}
+  .empty{font-size:14px; color:var(--ink-soft); padding:20px 0;}
 
-  .empty{font-size:14px; color:#6b675f; padding:20px 0;}
-  .legend{font-size:12.5px; color:#6b675f; margin-top:10px;}
-  .legend .yes{margin:0 3px;}
-
-  footer{margin-top:40px; font-size:12.5px; color:#7a766c; border-top:1px solid var(--line); padding-top:18px;}
-  footer a{color:var(--ochre-deep);}
-  .signature{
-    font-family:var(--serif); font-style:italic; font-size:15px; color:var(--ochre-deep); margin-top:4px;
-  }
+  footer{margin-top:44px; font-size:12.5px; color:var(--ink-soft);}
+  footer .ribbon{margin-bottom:22px;}
+  .signature{font-family:var(--serif); font-style:italic; font-size:15px; color:var(--gold-deep); margin-top:10px;}
 </style>
 </head>
 <body>
-<div class="wrap">
 
-  <header class="hero">
-    <div class="eyebrow">Wiki AfroDemics Project — working prototype</div>
-    <h1>Where the record thins out</h1>
-    <p class="sub">Every row below is pulled <em>live</em> from Wikidata, on load. No copy, no cache — if someone
-    writes a new article this afternoon, the count changes this afternoon. Pick a country to see who's
-    documented on Wikidata but still has no Wikipedia article at all — in English, French, or the local
-    official-language edition.</p>
-  </header>
+<svg class="ribbon ribbon-top" viewBox="0 0 320 14" preserveAspectRatio="none" aria-hidden="true">
+  <defs>
+    <pattern id="weaveTop" width="32" height="14" patternUnits="userSpaceOnUse">
+      <rect width="32" height="14" fill="#1b2a4a"/>
+      <path d="M0 14 L16 0 L32 14" stroke="#b8863c" stroke-width="5" fill="none"/>
+      <path d="M-16 14 L0 0 L16 14" stroke="#eef1f8" stroke-width="2" fill="none" opacity=".55"/>
+    </pattern>
+  </defs>
+  <rect width="320" height="14" fill="url(#weaveTop)"/>
+</svg>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="brandmark">
+      <img id="brandLogo" alt="Wiki AfroDemics Project logo"
+           src="https://upload.wikimedia.org/wikipedia/commons/0/08/Afrodemics_Logo_without_background.png">
+      <div class="word">
+        <span class="wap">Wiki AfroDemics Project</span>
+        <h1>Gap Tracker</h1>
+      </div>
+    </div>
+    <nav class="pills">
+      <a href="https://meta.wikimedia.org/wiki/Wiki_AfroDemics_Project" target="_blank" rel="noopener">Home</a>
+      <a href="https://meta.wikimedia.org/wiki/Wiki_AfroDemics_Project/Quarterly_Update" target="_blank" rel="noopener" class="current">Live Update</a>
+      <a href="https://meta.wikimedia.org/wiki/Wiki_AfroDemics_Project/Mentorship_Programme" target="_blank" rel="noopener">Mentorship</a>
+      <a href="https://meta.wikimedia.org/wiki/The_AfroDemics_Project/Wiki_Loves_AfroDemics_2025" target="_blank" rel="noopener">Wiki Loves Afrodemics</a>
+      <a href="https://meta.wikimedia.org/wiki/Wiki_AfroDemics_Project/Reports_and_Resource" target="_blank" rel="noopener">Reports</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+  <section class="hero">
+    <div class="eyebrow">Working prototype — companion to the Quarterly Update</div>
+    <h1 class="title">Where the record thins out</h1>
+    <p class="sub">Every figure below is pulled <em>live</em> from Wikidata, on load and again every few minutes —
+      no copy, no cache. If someone writes a new article this afternoon, the count moves this afternoon.</p>
+    <p class="sub">Pick a country to see who's documented on Wikidata but still has no Wikipedia article at all —
+      in English, French, or the local official-language edition — broken down honestly by gender.</p>
+    <p class="companion">Part of the <a href="https://meta.wikimedia.org/wiki/Wiki_AfroDemics_Project/Quarterly_Update" target="_blank" rel="noopener">Wiki AfroDemics Project</a>
+      — this tool is a live companion to the project's official Quarterly Update on Meta-Wiki, which remains the canonical record.</p>
+
+    <div class="ledger" id="ledger">
+      <div class="cell"><div class="num" id="statPeople">—</div><div class="lab">Wikidata items <span class="g">· scientists &amp; academics</span></div></div>
+      <div class="cell"><div class="num" id="statArticles">—</div><div class="lab">Wikipedia articles <span class="g">· EN + FR + local</span></div></div>
+      <div class="cell"><div class="num" id="statMen">—</div><div class="lab">Men <span class="g">· P21</span></div></div>
+      <div class="cell"><div class="num" id="statWomen">—</div><div class="lab">Women <span class="g">· P21</span></div></div>
+      <div class="cell"><div class="num" id="statOther">—</div><div class="lab">Other / unspecified <span class="g">· honest count</span></div></div>
+    </div>
+    <div class="live-row">
+      <span class="live-dot" id="liveDot"></span>
+      <span id="liveText">connecting…</span>
+    </div>
+  </section>
 
   <section class="panel">
     <h2>Continental overview</h2>
-    <div class="hint">Scientists &amp; academics per country, and how many have zero Wikipedia coverage in English or French.</div>
+    <div class="hint">Scientists &amp; academics per country, article coverage in English and French, and the gender split — refreshed automatically.</div>
+    <div class="fix-note">
+      <b>Why this used to time out:</b> the old version joined all 54 countries in one giant SPARQL query, so nothing
+      appeared until the whole thing finished — or failed. This version fires 54 small, single-country queries,
+      a few at a time, and streams each row in the moment it lands.
+    </div>
     <div class="controls">
-      <button id="loadOverview">Run continental query</button>
+      <button id="loadOverview">Refresh continental data</button>
+      <button id="autoToggle" class="ghost" type="button">Auto-refresh: on</button>
     </div>
     <div class="status" id="overviewStatus"></div>
+    <div class="progressbar"><div id="overviewProgress"></div></div>
     <div id="overviewTableWrap"></div>
+    <div class="gender-legend">
+      <span><i class="sw" style="background:var(--men)"></i>Men</span>
+      <span><i class="sw" style="background:var(--women)"></i>Women</span>
+      <span><i class="sw" style="background:var(--other)"></i>Other / unspecified — intersex, trans-specific, or simply not recorded on Wikidata</span>
+    </div>
   </section>
 
   <section class="panel">
     <h2>Country detail</h2>
-    <div class="hint">Full breakdown including the country's local official-language Wikipedia, plus the actual names of people missing every article.</div>
+    <div class="hint">Full breakdown including the country's local official-language Wikipedia, gender per person, and the actual names of people with no article anywhere.</div>
     <div class="controls">
-      <div>
-        <label for="countrySelect">Country</label>
-        <select id="countrySelect"></select>
-      </div>
+      <div><label for="countrySelect">Country</label><select id="countrySelect"></select></div>
       <button id="loadCountry">Run country query</button>
     </div>
     <div class="status" id="countryStatus"></div>
@@ -137,19 +228,26 @@
   </section>
 
   <footer>
-    <div>Data: Wikidata Query Service, queried live via SPARQL. Occupation match: scientist, academic/university
-    teacher, or researcher (<code>P106</code>); nationality via <code>P27</code>. "Local wiki" is an approximate
-    single official-language mapping per country for prototype purposes — several countries (Cameroon, Rwanda,
-    Chad, etc.) have more than one official language and would need a small refinement to check all of them.</div>
+    <svg class="ribbon" viewBox="0 0 320 14" preserveAspectRatio="none" aria-hidden="true">
+      <rect width="320" height="14" fill="url(#weaveTop)"/>
+    </svg>
+    <div>Data: Wikidata Query Service, queried live via SPARQL, 54 countries in parallel. Occupation match: scientist,
+    academic/university teacher, or researcher (<code>P106</code>); nationality via <code>P27</code>; gender via <code>P21</code>.
+    "Local wiki" is an approximate single official-language mapping per country for prototype purposes — several
+    countries (Cameroon, Rwanda, Chad, etc.) have more than one official language and would need a small refinement
+    to check all of them.</div>
     <div class="signature">— a starting point for the Quarterly Update, built to fork.</div>
   </footer>
 </div>
 
 <script>
 const ENDPOINT = "https://query.wikidata.org/sparql";
+const POOL_SIZE = 4;                 // "a few at a time, respectfully"
+const PER_QUERY_TIMEOUT_MS = 25000;
+const AUTO_REFRESH_MS = 3 * 60 * 1000;
+const MALE = "http://www.wikidata.org/entity/Q6581097";
+const FEMALE = "http://www.wikidata.org/entity/Q6581072";
 
-// Approximate: country QID -> { name, local wiki project code }
-// Local code chosen as the single most-used official-language Wikipedia for that country.
 const COUNTRIES = [
   ["Q262","Algeria","ar"], ["Q916","Angola","pt"], ["Q962","Benin","fr"],
   ["Q963","Botswana", null], ["Q965","Burkina Faso","fr"], ["Q967","Burundi","fr"],
@@ -177,95 +275,290 @@ function el(tag, attrs={}, ...children){
   children.forEach(c => n.appendChild(typeof c === "string" ? document.createTextNode(c) : c));
   return n;
 }
+function fmt(n){ return n.toLocaleString("en-US"); }
 
-async function runSparql(query){
+async function runSparql(query, timeoutMs){
   const url = ENDPOINT + "?query=" + encodeURIComponent(query) + "&format=json";
-  const resp = await fetch(url, { headers: { "Accept": "application/sparql-results+json" }});
-  if(!resp.ok) throw new Error("Wikidata returned status " + resp.status);
-  return resp.json();
+  const controller = new AbortController();
+  const t = setTimeout(()=>controller.abort(), timeoutMs || 20000);
+  try{
+    const resp = await fetch(url, { headers: { "Accept": "application/sparql-results+json" }, signal: controller.signal });
+    if(!resp.ok) throw new Error("Wikidata returned status " + resp.status);
+    return await resp.json();
+  } finally { clearTimeout(t); }
 }
 
-// ---------- Country dropdown ----------
-const countrySelect = document.getElementById("countrySelect");
-COUNTRIES.forEach(([qid, name]) => {
-  countrySelect.appendChild(el("option", {value: qid}, name));
+// Small concurrency pool: runs `worker` over `items`, a few at a time, calling
+// onSettle(index, item, result|null, error|null) the instant each one finishes —
+// this is what lets the table stream instead of waiting for all 54 to land.
+async function runPool(items, concurrency, worker, onSettle){
+  let cursor = 0;
+  async function lane(){
+    while(cursor < items.length){
+      const idx = cursor++;
+      try{
+        const result = await worker(items[idx], idx);
+        onSettle(idx, items[idx], result, null);
+      }catch(err){
+        onSettle(idx, items[idx], null, err);
+      }
+    }
+  }
+  await Promise.all(Array.from({length: Math.min(concurrency, items.length)}, lane));
+}
+
+// ---------- fallback logo (in case the hotlinked Commons file can't load) ----------
+document.getElementById("brandLogo").addEventListener("error", function(){
+  this.onerror = null;
+  const wrap = el("div", {class:"fallback-logo", style:
+    "display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-weight:600;color:var(--navy);font-size:18px;"},
+    "WA");
+  this.replaceWith(wrap);
 });
 
-// ---------- Continental overview ----------
-document.getElementById("loadOverview").addEventListener("click", loadOverview);
+// ---------- country dropdown ----------
+const countrySelect = document.getElementById("countrySelect");
+COUNTRIES.forEach(([qid, name]) => countrySelect.appendChild(el("option", {value: qid}, name)));
 
-async function loadOverview(){
-  const btn = document.getElementById("loadOverview");
-  const status = document.getElementById("overviewStatus");
-  const out = document.getElementById("overviewTableWrap");
-  btn.disabled = true;
-  status.textContent = "Querying Wikidata for all African countries — this scans a lot of people, allow 20–40s…";
-  status.classList.remove("err");
-  out.innerHTML = "";
-
-  const countryValues = COUNTRIES.map(c => "wd:"+c[0]).join(" ");
-  const query = `
-    SELECT ?country (SAMPLE(?countryLabel) AS ?label) (COUNT(DISTINCT ?person) AS ?total)
-           (COUNT(DISTINCT ?enArticle) AS ?withEn) (COUNT(DISTINCT ?frArticle) AS ?withFr)
+// ---------- per-country query (used by continental overview + live stats) ----------
+function countryQuery(qid, localCode){
+  const localOptional = localCode
+    ? `OPTIONAL { ?localArticle schema:about ?person; schema:isPartOf <https://${localCode}.wikipedia.org/>. }`
+    : "";
+  return `
+    SELECT (COUNT(DISTINCT ?person) AS ?total)
+           (COUNT(DISTINCT ?enArticle) AS ?withEn)
+           (COUNT(DISTINCT ?frArticle) AS ?withFr)
+           (COUNT(DISTINCT ?localArticle) AS ?withLocal)
+           (SUM(IF(?genderSample = <${MALE}>, 1, 0)) AS ?men)
+           (SUM(IF(?genderSample = <${FEMALE}>, 1, 0)) AS ?women)
     WHERE {
-      VALUES ?country { ${countryValues} }
-      ?person wdt:P27 ?country.
-      VALUES ?occ { wd:Q901 wd:Q3400985 wd:Q1622272 wd:Q1650915 }
-      ?person wdt:P106 ?occ.
+      {
+        SELECT ?person (SAMPLE(?g) AS ?genderSample) WHERE {
+          ?person wdt:P27 wd:${qid}.
+          VALUES ?occ { wd:Q901 wd:Q3400985 wd:Q1622272 wd:Q1650915 }
+          ?person wdt:P106 ?occ.
+          OPTIONAL { ?person wdt:P21 ?g. }
+        } GROUP BY ?person
+      }
       OPTIONAL { ?enArticle schema:about ?person; schema:isPartOf <https://en.wikipedia.org/>. }
       OPTIONAL { ?frArticle schema:about ?person; schema:isPartOf <https://fr.wikipedia.org/>. }
-      ?country rdfs:label ?countryLabel. FILTER(LANG(?countryLabel)="en")
+      ${localOptional}
     }
-    GROUP BY ?country
-    ORDER BY DESC(?total)
   `;
-
-  try{
-    const data = await runSparql(query);
-    status.textContent = `Done. ${data.results.bindings.length} countries returned.`;
-    renderOverview(data.results.bindings, out);
-  }catch(e){
-    status.textContent = "Query failed: " + e.message + ". Wikidata's public endpoint can time out on broad continental scans — try again, or narrow to country detail below.";
-    status.classList.add("err");
-  }finally{
-    btn.disabled = false;
-  }
 }
 
-function renderOverview(rows, out){
-  if(!rows.length){ out.innerHTML = '<div class="empty">No results.</div>'; return; }
+function parseCountryResult(binding){
+  const g = k => parseInt(binding[k]?.value ?? "0", 10);
+  const total = g("total"), men = g("men"), women = g("women");
+  return {
+    total, withEn: g("withEn"), withFr: g("withFr"), withLocal: g("withLocal"),
+    men, women, other: Math.max(0, total - men - women)
+  };
+}
+
+// ---------- live ledger (global stats), fed by the same 54 parallel queries ----------
+let liveTimer = null, autoRefreshOn = true, refreshInterval = null;
+
+function renderLedger(totals){
+  document.getElementById("statPeople").textContent = fmt(totals.total);
+  document.getElementById("statArticles").textContent = fmt(totals.withEn + totals.withFr + totals.withLocal);
+  document.getElementById("statMen").textContent = fmt(totals.men);
+  document.getElementById("statWomen").textContent = fmt(totals.women);
+  document.getElementById("statOther").textContent = fmt(totals.other);
+}
+
+function startLiveClock(lastUpdated){
+  clearInterval(liveTimer);
+  const dot = document.getElementById("liveDot");
+  const text = document.getElementById("liveText");
+  dot.classList.remove("stale");
+  function tick(){
+    const secs = Math.round((Date.now() - lastUpdated) / 1000);
+    const when = secs < 5 ? "just now" : secs < 60 ? `${secs}s ago` : `${Math.round(secs/60)}m ago`;
+    text.textContent = autoRefreshOn
+      ? `live — last pulled ${when}, refreshes automatically every 3 min`
+      : `last pulled ${when} — auto-refresh paused`;
+    if(secs > 240) dot.classList.add("stale"); else dot.classList.remove("stale");
+  }
+  tick();
+  liveTimer = setInterval(tick, 1000);
+}
+
+// ---------- continental overview (streaming) ----------
+const rowState = new Map(); // qid -> {tr cells..., data}
+let overviewRunning = false;
+
+function buildOverviewTable(){
   const table = el("table");
-  const thead = el("tr",{},
-    el("th",{},"Country"), el("th",{},"Total"), el("th",{},"With EN"),
-    el("th",{},"With FR"), el("th",{},"Gap (no EN, no FR)")
+  const thead = el("tr", {},
+    el("th",{},"Country"), el("th",{},"Total"), el("th",{},"With EN"), el("th",{},"With FR"),
+    el("th",{},"Gap (no EN, no FR)"), el("th",{},"Gender split")
   );
   table.appendChild(el("thead",{},thead));
   const tbody = el("tbody");
-  rows.forEach(r => {
-    const total = parseInt(r.total.value,10);
-    const withEn = parseInt(r.withEn.value,10);
-    const withFr = parseInt(r.withFr.value,10);
-    // Note: this is an approximation of the gap at the continental level (doesn't OR en/fr per-person,
-    // just compares aggregate counts) — country detail view below does the precise per-person check.
-    const roughGap = Math.max(0, total - Math.max(withEn, withFr));
-    tbody.appendChild(el("tr",{},
-      el("td",{}, r.label.value),
-      el("td",{class:"num"}, String(total)),
-      el("td",{class:"num"}, String(withEn)),
-      el("td",{class:"num"}, String(withFr)),
-      el("td",{class:"num gapcount"}, "≥ " + String(roughGap))
-    ));
+  COUNTRIES.forEach(([qid, name]) => {
+    const tr = el("tr", {class:"pending", "data-qid": qid});
+    tr.appendChild(el("td", {}, name));
+    const cells = { total: el("td",{class:"num"},"…"), en: el("td",{class:"num"},"…"),
+                     fr: el("td",{class:"num"},"…"), gap: el("td",{class:"num"},"…"),
+                     gender: el("td",{}, "") };
+    tr.appendChild(cells.total); tr.appendChild(cells.en); tr.appendChild(cells.fr);
+    tr.appendChild(cells.gap); tr.appendChild(cells.gender);
+    tbody.appendChild(tr);
+    rowState.set(qid, {tr, cells});
   });
   table.appendChild(tbody);
+  const out = document.getElementById("overviewTableWrap");
   out.innerHTML = "";
   out.appendChild(table);
-  out.appendChild(el("div",{class:"legend"},
-    "Gap column is a floor estimate at this aggregate level — the country detail panel below computes the exact per-person gap, including the local-language wiki."
-  ));
 }
 
-// ---------- Country detail ----------
+function genderBarEl(d){
+  const wrap = el("div", {class:"genderbar", title:`${d.men} men · ${d.women} women · ${d.other} other/unspecified`});
+  const total = Math.max(1, d.men + d.women + d.other);
+  const bar = (cls, n) => { const s = el("span",{class:cls}); s.style.width = (100*n/total)+"%"; return s; };
+  wrap.appendChild(bar("gb-men", d.men));
+  wrap.appendChild(bar("gb-women", d.women));
+  wrap.appendChild(bar("gb-other", d.other));
+  return wrap;
+}
+
+function fillRow(qid, d){
+  const { tr, cells } = rowState.get(qid);
+  tr.classList.remove("pending","error");
+  const roughGap = Math.max(0, d.total - Math.max(d.withEn, d.withFr));
+  cells.total.textContent = fmt(d.total);
+  cells.en.textContent = fmt(d.withEn);
+  cells.fr.textContent = fmt(d.withFr);
+  cells.gap.textContent = "≥ " + fmt(roughGap);
+  cells.gap.className = "num gapcount";
+  cells.gender.innerHTML = "";
+  cells.gender.appendChild(genderBarEl(d));
+}
+
+function markRowError(qid, name, err){
+  const { tr, cells } = rowState.get(qid);
+  tr.classList.remove("pending"); tr.classList.add("error");
+  cells.total.textContent = "—"; cells.en.textContent = "—"; cells.fr.textContent = "—";
+  cells.gap.innerHTML = ""; cells.gap.className = "num";
+  const btn = el("button", {class:"retry", type:"button"}, "retry " + name.toLowerCase());
+  btn.addEventListener("click", () => retryOne(qid, name));
+  cells.gap.appendChild(btn);
+  cells.gender.textContent = "timed out";
+}
+
+async function retryOne(qid, name){
+  const meta = COUNTRIES.find(c => c[0] === qid);
+  const { tr } = rowState.get(qid);
+  tr.classList.add("pending"); tr.classList.remove("error");
+  try{
+    const data = await runSparql(countryQuery(meta[0], meta[2]), PER_QUERY_TIMEOUT_MS);
+    const parsed = parseCountryResult(data.results.bindings[0] || {});
+    fillRow(qid, parsed);
+  }catch(e){
+    markRowError(qid, name, e);
+  }
+}
+
+async function loadOverview(){
+  if(overviewRunning) return;
+  overviewRunning = true;
+  const btn = document.getElementById("loadOverview");
+  const status = document.getElementById("overviewStatus");
+  const bar = document.getElementById("overviewProgress");
+  btn.disabled = true;
+  status.classList.remove("err");
+  buildOverviewTable();
+
+  let done = 0, failed = 0;
+  const totals = {total:0, withEn:0, withFr:0, withLocal:0, men:0, women:0, other:0};
+  const startedAt = Date.now();
+
+  status.textContent = `Querying 54 countries, ${POOL_SIZE} at a time…`;
+
+  await runPool(COUNTRIES, POOL_SIZE,
+    ([qid, name, localCode]) => runSparql(countryQuery(qid, localCode), PER_QUERY_TIMEOUT_MS),
+    (idx, [qid, name], data, err) => {
+      done++;
+      bar.style.width = Math.round(100*done/COUNTRIES.length) + "%";
+      if(err){
+        failed++;
+        markRowError(qid, name, err);
+      }else{
+        const parsed = parseCountryResult(data.results.bindings[0] || {});
+        fillRow(qid, parsed);
+        totals.total += parsed.total; totals.withEn += parsed.withEn; totals.withFr += parsed.withFr;
+        totals.withLocal += parsed.withLocal; totals.men += parsed.men; totals.women += parsed.women;
+        totals.other += parsed.other;
+      }
+      status.textContent = `${done}/${COUNTRIES.length} countries loaded` + (failed ? `, ${failed} timed out (retry inline)` : "") + "…";
+    }
+  );
+
+  const secs = ((Date.now() - startedAt)/1000).toFixed(1);
+  status.textContent = `Done in ${secs}s — ${COUNTRIES.length - failed}/${COUNTRIES.length} countries loaded` + (failed ? `, ${failed} need a retry.` : ".");
+  renderLedger(totals);
+  startLiveClock(Date.now());
+  btn.disabled = false;
+  overviewRunning = false;
+}
+
+document.getElementById("loadOverview").addEventListener("click", loadOverview);
+document.getElementById("autoToggle").addEventListener("click", function(){
+  autoRefreshOn = !autoRefreshOn;
+  this.textContent = "Auto-refresh: " + (autoRefreshOn ? "on" : "off");
+  if(autoRefreshOn){ refreshInterval = setInterval(loadOverview, AUTO_REFRESH_MS); }
+  else{ clearInterval(refreshInterval); }
+});
+
+// ---------- country detail ----------
 document.getElementById("loadCountry").addEventListener("click", loadCountry);
+
+function detailQuery(qid, localCode){
+  const localOptional = localCode
+    ? `OPTIONAL { ?localArticle schema:about ?person; schema:isPartOf <https://${localCode}.wikipedia.org/>. }`
+    : "";
+  return `
+    SELECT ?person ?personLabel ?enArticle ?frArticle ?localArticle ?gender
+    WHERE {
+      ?person wdt:P27 wd:${qid}.
+      VALUES ?occ { wd:Q901 wd:Q3400985 wd:Q1622272 wd:Q1650915 }
+      ?person wdt:P106 ?occ.
+      OPTIONAL { ?person wdt:P21 ?gender. }
+      OPTIONAL { ?enArticle schema:about ?person; schema:isPartOf <https://en.wikipedia.org/>. }
+      OPTIONAL { ?frArticle schema:about ?person; schema:isPartOf <https://fr.wikipedia.org/>. }
+      ${localOptional}
+      SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+    }
+    LIMIT 4000
+  `;
+}
+
+function genderTag(qid){
+  if(qid === MALE) return {cls:"men", label:"Man"};
+  if(qid === FEMALE) return {cls:"women", label:"Woman"};
+  return {cls:"other", label:"Other / unspecified"};
+}
+
+// De-duplicate rows per person (a person can appear more than once if they
+// have several optional matches) and OR their article/gender flags together.
+function dedupePeople(rows){
+  const byPerson = new Map();
+  rows.forEach(r => {
+    const id = r.person.value;
+    const existing = byPerson.get(id) || {
+      person: r.person, personLabel: r.personLabel,
+      hasEn: false, hasFr: false, hasLocal: false, gender: null
+    };
+    if(r.enArticle) existing.hasEn = true;
+    if(r.frArticle) existing.hasFr = true;
+    if(r.localArticle) existing.hasLocal = true;
+    if(r.gender && !existing.gender) existing.gender = r.gender.value;
+    byPerson.set(id, existing);
+  });
+  return Array.from(byPerson.values());
+}
 
 async function loadCountry(){
   const btn = document.getElementById("loadCountry");
@@ -274,83 +567,73 @@ async function loadCountry(){
   const qid = countrySelect.value;
   const meta = COUNTRIES.find(c => c[0]===qid);
   const localCode = meta[2];
-
   btn.disabled = true;
   status.textContent = `Querying Wikidata for ${meta[1]}…`;
   status.classList.remove("err");
   out.innerHTML = "";
-
-  const localOptional = localCode
-    ? `OPTIONAL { ?localArticle schema:about ?person; schema:isPartOf <https://${localCode}.wikipedia.org/>. }`
-    : "";
-
-  const query = `
-    SELECT ?person ?personLabel ?enArticle ?frArticle ?localArticle
-    WHERE {
-      ?person wdt:P27 wd:${qid}.
-      VALUES ?occ { wd:Q901 wd:Q3400985 wd:Q1622272 wd:Q1650915 }
-      ?person wdt:P106 ?occ.
-      OPTIONAL { ?enArticle schema:about ?person; schema:isPartOf <https://en.wikipedia.org/>. }
-      OPTIONAL { ?frArticle schema:about ?person; schema:isPartOf <https://fr.wikipedia.org/>. }
-      ${localOptional}
-      SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
-    }
-    LIMIT 2000
-  `;
-
   try{
-    const data = await runSparql(query);
-    status.textContent = `Done. ${data.results.bindings.length} people found for ${meta[1]}.`;
-    renderCountry(data.results.bindings, meta, out);
+    const data = await runSparql(detailQuery(qid, localCode), 30000);
+    const people = dedupePeople(data.results.bindings);
+    status.textContent = `Done. ${people.length} people found for ${meta[1]}.`;
+    renderCountry(people, meta, out);
   }catch(e){
-    status.textContent = "Query failed: " + e.message;
+    status.textContent = "Query failed: " + e.message + " — Wikidata's endpoint can be slow for a single broad country; try again.";
     status.classList.add("err");
   }finally{
     btn.disabled = false;
   }
 }
 
-function renderCountry(rows, meta, out){
+function renderCountry(people, meta, out){
   out.innerHTML = "";
-  if(!rows.length){
+  if(!people.length){
     out.appendChild(el("div",{class:"empty"}, `No matching Wikidata items found for ${meta[1]}.`));
     return;
   }
-
-  const total = rows.length;
-  const withEn = rows.filter(r => r.enArticle).length;
-  const withFr = rows.filter(r => r.frArticle).length;
-  const withLocal = rows.filter(r => r.localArticle).length;
-  const gapPeople = rows.filter(r => !r.enArticle && !r.frArticle && !r.localArticle);
+  const total = people.length;
+  const withEn = people.filter(p => p.hasEn).length;
+  const withFr = people.filter(p => p.hasFr).length;
+  const withLocal = people.filter(p => p.hasLocal).length;
+  const men = people.filter(p => p.gender === MALE).length;
+  const women = people.filter(p => p.gender === FEMALE).length;
+  const other = total - men - women;
+  const gapPeople = people.filter(p => !p.hasEn && !p.hasFr && !p.hasLocal);
 
   const summary = el("table");
   summary.appendChild(el("tbody",{},
-    el("tr",{}, el("td",{},"Total on Wikidata"), el("td",{class:"num"}, String(total))),
-    el("tr",{}, el("td",{},"With English article"), el("td",{class:"num"}, String(withEn))),
-    el("tr",{}, el("td",{},"With French article"), el("td",{class:"num"}, String(withFr))),
+    el("tr",{}, el("td",{},"Total on Wikidata"), el("td",{class:"num"}, fmt(total))),
+    el("tr",{}, el("td",{},"With English article"), el("td",{class:"num"}, fmt(withEn))),
+    el("tr",{}, el("td",{},"With French article"), el("td",{class:"num"}, fmt(withFr))),
     el("tr",{}, el("td",{}, meta[2] ? `With ${meta[2]}.wikipedia article (local)` : "Local official-language wiki not set for this country"),
-        el("td",{class:"num"}, meta[2] ? String(withLocal) : "—")),
+        el("td",{class:"num"}, meta[2] ? fmt(withLocal) : "—")),
+    el("tr",{}, el("td",{},"Men"), el("td",{class:"num"}, fmt(men))),
+    el("tr",{}, el("td",{},"Women"), el("td",{class:"num"}, fmt(women))),
+    el("tr",{}, el("td",{},"Other / unspecified"), el("td",{class:"num"}, fmt(other))),
     el("tr",{}, el("td",{}, el("strong",{},"No article in EN, FR, or local — total gap")),
-        el("td",{class:"num gapcount"}, String(gapPeople.length)))
+        el("td",{class:"num gapcount"}, fmt(gapPeople.length)))
   ));
   out.appendChild(summary);
-
-  out.appendChild(el("h2",{style:"margin-top:24px;"}, `People with no Wikipedia article (${gapPeople.length})`));
+  out.appendChild(el("h2",{style:"margin-top:24px;font-family:var(--serif);font-size:19px;color:var(--navy);"}, `People with no Wikipedia article (${gapPeople.length})`));
   if(!gapPeople.length){
-    out.appendChild(el("div",{class:"empty"}, "No gap — everyone in this list already has coverage in at least one of the checked languages. 🎉"));
+    out.appendChild(el("div",{class:"empty"}, "No gap — everyone in this list already has coverage in at least one of the checked languages."));
     return;
   }
   const list = el("ul",{class:"name-list"});
-  gapPeople.forEach(r => {
-    const qid = r.person.value.split("/").pop();
-    const name = r.personLabel ? r.personLabel.value : qid;
+  gapPeople.forEach(p => {
+    const qid = p.person.value.split("/").pop();
+    const name = p.personLabel ? p.personLabel.value : qid;
+    const g = genderTag(p.gender);
     list.appendChild(el("li",{},
-      el("a",{href:r.person.value, target:"_blank", rel:"noopener"}, name),
-      el("span",{class:"qid"}, qid)
+      el("a",{href:p.person.value, target:"_blank", rel:"noopener"}, name),
+      el("span",{class:"meta"}, el("span",{class:"tag "+g.cls}, g.label), el("span",{class:"qid"}, qid))
     ));
   });
   out.appendChild(list);
 }
+
+// ---------- boot ----------
+loadOverview();
+refreshInterval = setInterval(loadOverview, AUTO_REFRESH_MS);
 </script>
 </body>
 </html>
