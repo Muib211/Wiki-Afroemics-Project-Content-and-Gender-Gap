@@ -6,7 +6,6 @@
 <title>Wiki AfroDemics — Content &amp; Gender Gap Tracker</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
-
   :root{
     --navy:        #1b2a4a;   /* brand navy, taken from the project's own pill nav */
     --navy-deep:    #10182c;
@@ -34,11 +33,9 @@
   .wrap{max-width:1040px; margin:0 auto; padding:0 24px 96px;}
   a{color:var(--gold-deep);}
   code{background:var(--navy-pale); color:var(--navy); padding:1px 6px; border-radius:3px; font-size:.92em;}
-
   /* ---------- signature ribbon (woven, one motif, used twice) ---------- */
   .ribbon{display:block; width:100%; height:14px;}
   .ribbon-top{margin-top:0;}
-
   /* ---------- masthead ---------- */
   header.masthead{background:var(--navy); color:#fff;}
   .masthead-inner{max-width:1040px; margin:0 auto; padding:22px 24px 26px; display:flex; align-items:center; gap:16px; flex-wrap:wrap;}
@@ -55,7 +52,6 @@
   }
   nav.pills a:hover{background:var(--gold); color:#fff;}
   nav.pills a.current{background:var(--gold); color:#fff;}
-
   /* ---------- hero ---------- */
   .hero{padding:40px 0 8px;}
   .eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--gold-deep); margin-bottom:10px; font-weight:600;}
@@ -64,7 +60,6 @@
   .sub em{font-style:italic; color:var(--ink);}
   .sub + .sub{margin-top:10px;}
   .companion{margin-top:16px; font-size:13.5px; color:var(--ink-soft);}
-
   /* ---------- live ledger (stat strip) ---------- */
   .ledger{
     margin:30px 0 6px; border-top:1px solid var(--line); border-bottom:1px solid var(--line);
@@ -81,14 +76,12 @@
   .live-dot.stale{background:#b8b2a2; animation:none;}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(47,107,79,.5);}70%{box-shadow:0 0 0 7px rgba(47,107,79,0);}100%{box-shadow:0 0 0 0 rgba(47,107,79,0);}}
   @media (prefers-reduced-motion: reduce){ .live-dot{animation:none;} }
-
   /* ---------- panels ---------- */
   .panel{border:1px solid var(--line); background:var(--paper-raised); border-radius:3px; padding:26px; margin:26px 0;}
   .panel h2{font-family:var(--serif); font-size:21px; margin:0 0 4px; font-weight:600; color:var(--navy);}
   .panel .hint{font-size:13px; color:var(--ink-soft); margin-bottom:18px; max-width:680px;}
   .fix-note{background:var(--navy-pale); border-left:3px solid var(--navy); padding:10px 14px; font-size:12.5px; color:var(--navy); border-radius:2px; margin-bottom:18px; max-width:680px;}
   .fix-note b{color:var(--navy-deep);}
-
   .controls{display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;}
   label{display:block; font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-soft); margin-bottom:6px;}
   select, button{font-family:var(--sans); font-size:14.5px; padding:10px 14px; border:1px solid var(--navy); border-radius:2px; background:#fff; color:var(--ink);}
@@ -99,12 +92,10 @@
   button.ghost:hover{background:var(--navy-pale);}
   button:disabled{background:#cfc9ba; border-color:#cfc9ba; cursor:wait;}
   button:focus-visible, select:focus-visible{outline:3px solid var(--gold); outline-offset:2px;}
-
   .status{font-family:var(--mono); font-size:12.5px; color:var(--ink-soft); margin-top:14px; min-height:18px;}
   .status.err{color:var(--gap);}
   .progressbar{height:4px; background:var(--navy-pale); border-radius:2px; margin-top:10px; overflow:hidden;}
   .progressbar > div{height:100%; background:var(--gold); width:0%; transition:width .25s ease;}
-
   table{width:100%; border-collapse:collapse; font-size:13.5px; margin-top:14px;}
   th{text-align:left; font-family:var(--mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); border-bottom:1.5px solid var(--navy); padding:8px 9px;}
   td{padding:8px 9px; border-bottom:1px solid var(--line); vertical-align:middle;}
@@ -114,13 +105,11 @@
   .num{font-family:var(--mono); text-align:right; font-variant-numeric:tabular-nums;}
   .gapcount{font-weight:700; color:var(--gap);}
   .retry{font-family:var(--mono); font-size:11px; color:var(--gold-deep); background:none; border:none; padding:0; text-decoration:underline; cursor:pointer;}
-
   .genderbar{display:flex; width:76px; height:9px; border-radius:2px; overflow:hidden; background:var(--line); margin-left:auto;}
   .genderbar span{display:block; height:100%;}
   .gb-men{background:var(--men);} .gb-women{background:var(--women);} .gb-other{background:var(--other);}
   .gender-legend{display:flex; gap:14px; font-size:12px; color:var(--ink-soft); margin-top:12px; flex-wrap:wrap;}
   .gender-legend .sw{display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:5px; vertical-align:middle;}
-
   .name-list{list-style:none; margin:0; padding:0;}
   .name-list li{padding:10px 0; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:12px; align-items:center;}
   .name-list li:last-child{border-bottom:none;}
@@ -131,14 +120,12 @@
   .tag.men{background:#e4ecf5; color:var(--men);} .tag.women{background:#f4e6ec; color:var(--women);} .tag.other{background:var(--gold-pale); color:var(--gold-deep);}
   .name-list .qid{font-family:var(--mono); font-size:11.5px; color:#9a947f;}
   .empty{font-size:14px; color:var(--ink-soft); padding:20px 0;}
-
   footer{margin-top:44px; font-size:12.5px; color:var(--ink-soft);}
   footer .ribbon{margin-bottom:22px;}
   .signature{font-family:var(--serif); font-style:italic; font-size:15px; color:var(--gold-deep); margin-top:10px;}
 </style>
 </head>
 <body>
-
 <svg class="ribbon ribbon-top" viewBox="0 0 320 14" preserveAspectRatio="none" aria-hidden="true">
   <defs>
     <pattern id="weaveTop" width="32" height="14" patternUnits="userSpaceOnUse">
@@ -149,7 +136,6 @@
   </defs>
   <rect width="320" height="14" fill="url(#weaveTop)"/>
 </svg>
-
 <header class="masthead">
   <div class="masthead-inner">
     <div class="brandmark">
@@ -169,7 +155,6 @@
     </nav>
   </div>
 </header>
-
 <div class="wrap">
   <section class="hero">
     <div class="eyebrow">Wiki AfroDemics Project — Content &amp; Gender Gap Tracker</div>
@@ -179,7 +164,6 @@
     <p class="sub">Select any African country to discover academics and scientists who are documented on Wikidata but are still missing a Wikipedia article in English, French, or the country's official-language edition.
       The dashboard also highlights where content gaps are higher including the gender disparities that the Wiki AfroDemics Project is working to address.</p>
     <p class="companion">Developed for the <a href="https://meta.wikimedia.org/wiki/Wiki_AfroDemics_Project" target="_blank" rel="noopener">Wiki AfroDemics Project</a>, this dashboard serves as a real-time companion for participants, editors, and the wider Wikimedia community, transforming contributions into measurable impact.</p>
-
     <div class="ledger" id="ledger">
       <div class="cell"><div class="num" id="statPeople">—</div><div class="lab">Wikidata items <span class="g">· scientists &amp; academics</span></div></div>
       <div class="cell"><div class="num" id="statArticles">—</div><div class="lab">Wikipedia articles <span class="g">· EN + FR + local</span></div></div>
@@ -192,7 +176,6 @@
       <span id="liveText">connecting…</span>
     </div>
   </section>
-
   <section class="panel">
     <h2>Continental overview</h2>
     <div class="hint">Scientists &amp; academics per country, article coverage in English and French, and the gender split — refreshed automatically.</div>
@@ -200,6 +183,12 @@
       <b>How this stays fast:</b> instead of one giant SPARQL query joining all 54 countries, this fires 54 small,
       single-country queries, a few at a time, and streams each row in the moment it lands — so the table fills in
       live instead of making you wait on the slowest country.
+      <br><br>
+      <b>Occupation matching:</b> a person counts if their occupation is scientist, researcher, academic, or
+      university teacher — <em>or any subclass of those</em> (e.g. "linguist," "biologist," "historian," "professor
+      of X"), via Wikidata's subclass-of (<code>P279</code>) chain. This catches people whose occupation statement
+      is more specific than the four broad classes, at the cost of a slower per-country query — a country with a
+      lot of items can occasionally time out and need the inline retry button below.
     </div>
     <div class="controls">
       <button id="loadOverview">Refresh continental data</button>
@@ -214,7 +203,6 @@
       <span><i class="sw" style="background:var(--other)"></i>Other / unspecified — intersex, trans-specific, or simply not recorded on Wikidata</span>
     </div>
   </section>
-
   <section class="panel">
     <h2>Country detail</h2>
     <div class="hint">Full breakdown including the country's local official-language Wikipedia, gender per person, and the actual names of people with no article anywhere.</div>
@@ -225,28 +213,29 @@
     <div class="status" id="countryStatus"></div>
     <div id="countryResult"></div>
   </section>
-
   <footer>
     <svg class="ribbon" viewBox="0 0 320 14" preserveAspectRatio="none" aria-hidden="true">
       <rect width="320" height="14" fill="url(#weaveTop)"/>
     </svg>
     <div>Data: Wikidata Query Service, queried live via SPARQL, 54 countries in parallel. Occupation match: scientist,
-    academic/university teacher, or researcher (<code>P106</code>); nationality via <code>P27</code>; gender via <code>P21</code>.
+    academic/university teacher, or researcher (<code>P106</code>) — including any subclass of these via
+    <code>wdt:P279*</code>; nationality via <code>P27</code>; gender via <code>P21</code>.
     "Local wiki" is an approximate single official-language mapping per country for now — several
     countries (Cameroon, Rwanda, Chad, etc.) have more than one official language and would need a small refinement
     to check all of them.</div>
     <div class="signature">— built for the Wiki AfroDemics Project, to make the invisible, visible.</div>
   </footer>
 </div>
-
 <script>
 const ENDPOINT = "https://query.wikidata.org/sparql";
 const POOL_SIZE = 4;                 // "a few at a time, respectfully"
-const PER_QUERY_TIMEOUT_MS = 25000;
+const PER_QUERY_TIMEOUT_MS = 40000;  // subclass-of (P279*) traversal is slower than an exact-match VALUES list
 const AUTO_REFRESH_MS = 3 * 60 * 1000;
 const MALE = "http://www.wikidata.org/entity/Q6581097";
 const FEMALE = "http://www.wikidata.org/entity/Q6581072";
-
+// Occupation "roots" — anyone whose P106 value is one of these, OR a subclass
+// (however many wdt:P279 hops deep) of one of these, counts as a scientist/academic.
+const OCC_ROOTS = ["wd:Q901", "wd:Q1650915", "wd:Q3400985", "wd:Q1622272"]; // scientist, researcher, academic, university teacher
 const COUNTRIES = [
   ["Q262","Algeria","ar"], ["Q916","Angola","pt"], ["Q962","Benin","fr"],
   ["Q963","Botswana", null], ["Q965","Burkina Faso","fr"], ["Q967","Burundi","fr"],
@@ -267,7 +256,6 @@ const COUNTRIES = [
   ["Q924","Tanzania","sw"], ["Q945","Togo","fr"], ["Q948","Tunisia","ar"],
   ["Q1036","Uganda", null], ["Q953","Zambia", null], ["Q954","Zimbabwe", null]
 ].sort((a,b)=>a[1].localeCompare(b[1]));
-
 function el(tag, attrs={}, ...children){
   const n = document.createElement(tag);
   for(const k in attrs) n.setAttribute(k, attrs[k]);
@@ -275,7 +263,6 @@ function el(tag, attrs={}, ...children){
   return n;
 }
 function fmt(n){ return n.toLocaleString("en-US"); }
-
 async function runSparql(query, timeoutMs){
   const url = ENDPOINT + "?query=" + encodeURIComponent(query) + "&format=json";
   const controller = new AbortController();
@@ -286,7 +273,6 @@ async function runSparql(query, timeoutMs){
     return await resp.json();
   } finally { clearTimeout(t); }
 }
-
 // Small concurrency pool: runs `worker` over `items`, a few at a time, calling
 // onSettle(index, item, result|null, error|null) the instant each one finishes —
 // this is what lets the table stream instead of waiting for all 54 to land.
@@ -305,7 +291,6 @@ async function runPool(items, concurrency, worker, onSettle){
   }
   await Promise.all(Array.from({length: Math.min(concurrency, items.length)}, lane));
 }
-
 // ---------- fallback logo (in case the hotlinked Commons file can't load) ----------
 document.getElementById("brandLogo").addEventListener("error", function(){
   this.onerror = null;
@@ -314,11 +299,18 @@ document.getElementById("brandLogo").addEventListener("error", function(){
     "WA");
   this.replaceWith(wrap);
 });
-
 // ---------- country dropdown ----------
 const countrySelect = document.getElementById("countrySelect");
 COUNTRIES.forEach(([qid, name]) => countrySelect.appendChild(el("option", {value: qid}, name)));
-
+// Shared occupation-matching graph pattern: walks every P106 statement's value
+// up its subclass-of (P279) chain and keeps the person if any ancestor (or the
+// value itself) is one of the four root occupations. This is what catches
+// someone tagged "linguist" or "biologist" who was never tagged "scientist"
+// directly.
+const OCC_PATTERN = `
+        ?person p:P106 ?occStatement.
+        ?occStatement (ps:P106/(wdt:P279*)) ?occ.
+        FILTER(?occ IN (${OCC_ROOTS.join(", ")}))`;
 // ---------- per-country query (used by continental overview + live stats) ----------
 // One row per person, computed *inside* the subquery via GROUP BY, before anything
 // gets counted. Doing it this way — rather than SAMPLE-ing one gender value per
@@ -347,8 +339,7 @@ function countryQuery(qid, localCode){
              (MAX(IF(?g = <${FEMALE}>, 1, 0)) AS ?isFemale)
       WHERE {
         ?person wdt:P27 wd:${qid}.
-        VALUES ?occ { wd:Q901 wd:Q3400985 wd:Q1622272 wd:Q1650915 }
-        ?person wdt:P106 ?occ.
+        ${OCC_PATTERN}
         OPTIONAL { ?person wdt:P21 ?g. }
         OPTIONAL { ?en schema:about ?person; schema:isPartOf <https://en.wikipedia.org/>. }
         OPTIONAL { ?fr schema:about ?person; schema:isPartOf <https://fr.wikipedia.org/>. }
@@ -358,7 +349,6 @@ function countryQuery(qid, localCode){
     }
   `;
 }
-
 function parseCountryResult(binding){
   const g = k => parseInt(binding[k]?.value ?? "0", 10);
   const total = g("total"), men = g("men"), women = g("women"), both = g("both");
@@ -371,10 +361,8 @@ function parseCountryResult(binding){
     men, women, other: Math.max(0, total - coveredByMOrF)
   };
 }
-
 // ---------- live ledger (global stats), fed by the same 54 parallel queries ----------
 let liveTimer = null, autoRefreshOn = true, refreshInterval = null;
-
 function renderLedger(totals){
   document.getElementById("statPeople").textContent = fmt(totals.total);
   document.getElementById("statArticles").textContent = fmt(totals.withEn + totals.withFr + totals.withLocal);
@@ -382,7 +370,6 @@ function renderLedger(totals){
   document.getElementById("statWomen").textContent = fmt(totals.women);
   document.getElementById("statOther").textContent = fmt(totals.other);
 }
-
 function startLiveClock(lastUpdated){
   clearInterval(liveTimer);
   const dot = document.getElementById("liveDot");
@@ -399,11 +386,9 @@ function startLiveClock(lastUpdated){
   tick();
   liveTimer = setInterval(tick, 1000);
 }
-
 // ---------- continental overview (streaming) ----------
 const rowState = new Map(); // qid -> {tr cells..., data}
 let overviewRunning = false;
-
 function buildOverviewTable(){
   const table = el("table");
   const thead = el("tr", {},
@@ -428,7 +413,6 @@ function buildOverviewTable(){
   out.innerHTML = "";
   out.appendChild(table);
 }
-
 function genderBarEl(d){
   const wrap = el("div", {class:"genderbar", title:`${d.men} men · ${d.women} women · ${d.other} other/unspecified`});
   const total = Math.max(1, d.men + d.women + d.other);
@@ -438,7 +422,6 @@ function genderBarEl(d){
   wrap.appendChild(bar("gb-other", d.other));
   return wrap;
 }
-
 function fillRow(qid, d){
   const { tr, cells } = rowState.get(qid);
   tr.classList.remove("pending","error");
@@ -451,7 +434,6 @@ function fillRow(qid, d){
   cells.gender.innerHTML = "";
   cells.gender.appendChild(genderBarEl(d));
 }
-
 function markRowError(qid, name, err){
   const { tr, cells } = rowState.get(qid);
   tr.classList.remove("pending"); tr.classList.add("error");
@@ -462,7 +444,6 @@ function markRowError(qid, name, err){
   cells.gap.appendChild(btn);
   cells.gender.textContent = "timed out";
 }
-
 async function retryOne(qid, name){
   const meta = COUNTRIES.find(c => c[0] === qid);
   const { tr } = rowState.get(qid);
@@ -475,7 +456,6 @@ async function retryOne(qid, name){
     markRowError(qid, name, e);
   }
 }
-
 async function loadOverview(){
   if(overviewRunning) return;
   overviewRunning = true;
@@ -485,13 +465,10 @@ async function loadOverview(){
   btn.disabled = true;
   status.classList.remove("err");
   buildOverviewTable();
-
   let done = 0, failed = 0;
   const totals = {total:0, withEn:0, withFr:0, withLocal:0, men:0, women:0, other:0};
   const startedAt = Date.now();
-
   status.textContent = `Querying 54 countries, ${POOL_SIZE} at a time…`;
-
   await runPool(COUNTRIES, POOL_SIZE,
     ([qid, name, localCode]) => runSparql(countryQuery(qid, localCode), PER_QUERY_TIMEOUT_MS),
     (idx, [qid, name], data, err) => {
@@ -510,7 +487,6 @@ async function loadOverview(){
       status.textContent = `${done}/${COUNTRIES.length} countries loaded` + (failed ? `, ${failed} timed out (retry inline)` : "") + "…";
     }
   );
-
   const secs = ((Date.now() - startedAt)/1000).toFixed(1);
   status.textContent = `Done in ${secs}s — ${COUNTRIES.length - failed}/${COUNTRIES.length} countries loaded` + (failed ? `, ${failed} need a retry.` : ".");
   renderLedger(totals);
@@ -518,7 +494,6 @@ async function loadOverview(){
   btn.disabled = false;
   overviewRunning = false;
 }
-
 document.getElementById("loadOverview").addEventListener("click", loadOverview);
 document.getElementById("autoToggle").addEventListener("click", function(){
   autoRefreshOn = !autoRefreshOn;
@@ -526,10 +501,8 @@ document.getElementById("autoToggle").addEventListener("click", function(){
   if(autoRefreshOn){ refreshInterval = setInterval(loadOverview, AUTO_REFRESH_MS); }
   else{ clearInterval(refreshInterval); }
 });
-
 // ---------- country detail ----------
 document.getElementById("loadCountry").addEventListener("click", loadCountry);
-
 function detailQuery(qid, localCode){
   const localOptional = localCode
     ? `OPTIONAL { ?localArticle schema:about ?person; schema:isPartOf <https://${localCode}.wikipedia.org/>. }`
@@ -538,8 +511,7 @@ function detailQuery(qid, localCode){
     SELECT ?person ?personLabel ?enArticle ?frArticle ?localArticle ?gender
     WHERE {
       ?person wdt:P27 wd:${qid}.
-      VALUES ?occ { wd:Q901 wd:Q3400985 wd:Q1622272 wd:Q1650915 }
-      ?person wdt:P106 ?occ.
+      ${OCC_PATTERN}
       OPTIONAL { ?person wdt:P21 ?gender. }
       OPTIONAL { ?enArticle schema:about ?person; schema:isPartOf <https://en.wikipedia.org/>. }
       OPTIONAL { ?frArticle schema:about ?person; schema:isPartOf <https://fr.wikipedia.org/>. }
@@ -549,18 +521,18 @@ function detailQuery(qid, localCode){
     LIMIT 4000
   `;
 }
-
 function genderTag(p){
   if(p.isMale && p.isFemale) return {cls:"other", label:"Man &amp; woman (dual-tagged)"};
   if(p.isMale) return {cls:"men", label:"Man"};
   if(p.isFemale) return {cls:"women", label:"Woman"};
   return {cls:"other", label:"Other / unspecified"};
 }
-
 // De-duplicate rows per person (a person can appear more than once if they have
-// several optional matches, or more than one P21 statement) and OR their flags
-// together — this is what lets someone tagged both male and female show as both,
-// instead of silently collapsing to whichever row SPARQL happened to return first.
+// several optional matches, more than one P21 statement, or — now that occupation
+// matching walks the subclass chain — more than one qualifying P106 statement)
+// and OR their flags together — this is what lets someone tagged both male and
+// female show as both, instead of silently collapsing to whichever row SPARQL
+// happened to return first.
 function dedupePeople(rows){
   const byPerson = new Map();
   rows.forEach(r => {
@@ -578,7 +550,6 @@ function dedupePeople(rows){
   });
   return Array.from(byPerson.values());
 }
-
 async function loadCountry(){
   const btn = document.getElementById("loadCountry");
   const status = document.getElementById("countryStatus");
@@ -591,18 +562,17 @@ async function loadCountry(){
   status.classList.remove("err");
   out.innerHTML = "";
   try{
-    const data = await runSparql(detailQuery(qid, localCode), 30000);
+    const data = await runSparql(detailQuery(qid, localCode), 45000);
     const people = dedupePeople(data.results.bindings);
     status.textContent = `Done. ${people.length} people found for ${meta[1]}.`;
     renderCountry(people, meta, out);
   }catch(e){
-    status.textContent = "Query failed: " + e.message + " — Wikidata's endpoint can be slow for a single broad country; try again.";
+    status.textContent = "Query failed: " + e.message + " — subclass-aware occupation matching is heavier than an exact-match list, so Wikidata's endpoint can be slow for a broad country; try again.";
     status.classList.add("err");
   }finally{
     btn.disabled = false;
   }
 }
-
 function renderCountry(people, meta, out){
   out.innerHTML = "";
   if(!people.length){
@@ -617,7 +587,6 @@ function renderCountry(people, meta, out){
   const women = people.filter(p => p.isFemale).length;
   const other = people.filter(p => !p.isMale && !p.isFemale).length;
   const gapPeople = people.filter(p => !p.hasEn && !p.hasFr && !p.hasLocal);
-
   const summary = el("table");
   summary.appendChild(el("tbody",{},
     el("tr",{}, el("td",{},"Total on Wikidata"), el("td",{class:"num"}, fmt(total))),
@@ -651,7 +620,6 @@ function renderCountry(people, meta, out){
   });
   out.appendChild(list);
 }
-
 // ---------- boot ----------
 loadOverview();
 refreshInterval = setInterval(loadOverview, AUTO_REFRESH_MS);
