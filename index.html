@@ -181,24 +181,29 @@
     <div class="hint">Scientists &amp; academics per country, article coverage, and the gender split — refreshed automatically.</div>
     <div class="fix-note">
       <b>How this stays fast:</b> instead of one giant SPARQL query joining all 54 countries, this fires 54 small,
-      single-country queries, a few at a time, and streams each row in the moment it lands — so the table fills in
+      single-country queries, a few at a time, and streams each row in the moment it lands; so the table fills in
       live instead of making you wait on the slowest country.
       <br><br>
       <b>Occupation matching:</b> a person counts if their occupation is scientist, researcher, academic, or
-      university teacher — <em>or any subclass of those</em> (e.g. "linguist," "biologist," "historian," "professor
+      university teacher or <em>any subclass of those </em> (e.g. "linguist," "biologist," "historian," "professor
       of X"), via Wikidata's subclass-of (<code>P279</code>) chain. This catches people whose occupation statement
-      is more specific than the four broad classes, at the cost of a slower per-country query — a country with a
+      is more specific than the four broad classes, at the cost of a slower per-country query. That is, a country with a
       lot of items can occasionally time out and need the inline retry button below.
       <br><br>
       <b>Language coverage:</b> every country checks <b>English, French, Arabic, and Portuguese</b> Wikipedia
-      for every person — not just the country's "home" language — plus each country's specific official local
+      for every person, not just the country's "home" language, plus each country's specific official local
       language where one is set (Swahili, Amharic, Malagasy, Somali, Kinyarwanda, Spanish). Someone only counts
       as a genuine gap if they have <em>no</em> article in any of those. The "With EN" / "With FR" columns below
       are shown for scale, but the Gap column reflects the full multi-language check.
+      <br><br>
+      <b>Auto-refresh:</b> off by default — once the 54 countries load, the table just stays as-is rather than
+      re-querying everything on a timer (that was the source of the repeated timeouts). If you turn it on, it
+      only retries countries that are still showing an error; anything that already loaded successfully is left
+      alone.
     </div>
     <div class="controls">
       <button id="loadOverview">Refresh continental data</button>
-      <button id="autoToggle" class="ghost" type="button">Auto-refresh: on</button>
+      <button id="autoToggle" class="ghost" type="button">Auto-refresh: off</button>
     </div>
     <div class="status" id="overviewStatus"></div>
     <div class="progressbar"><div id="overviewProgress"></div></div>
@@ -236,7 +241,7 @@
 const ENDPOINT = "https://query.wikidata.org/sparql";
 const POOL_SIZE = 4;                 // "a few at a time, respectfully"
 const PER_QUERY_TIMEOUT_MS = 40000;  // subclass-of (P279*) traversal + more languages is slower than a narrow exact-match query
-const AUTO_REFRESH_MS = 3 * 60 * 1000;
+const AUTO_REFRESH_MS = 5 * 60 * 1000; // only matters when auto-refresh is on — it now retries failed rows only, not a full 54-country reload
 const MALE = "http://www.wikidata.org/entity/Q6581097";
 const FEMALE = "http://www.wikidata.org/entity/Q6581072";
 // Occupation "roots" — anyone whose P106 value is one of these, OR a subclass
@@ -392,7 +397,7 @@ function parseCountryResult(binding, langs){
   };
 }
 // ---------- live ledger (global stats), fed by the same 54 parallel queries ----------
-let liveTimer = null, autoRefreshOn = true, refreshInterval = null;
+let liveTimer = null, autoRefreshOn = false, refreshInterval = null;
 function renderLedger(totals){
   const articleSum = Object.values(totals.langSum).reduce((s,n) => s + n, 0);
   document.getElementById("statPeople").textContent = fmt(totals.total);
@@ -410,9 +415,9 @@ function startLiveClock(lastUpdated){
     const secs = Math.round((Date.now() - lastUpdated) / 1000);
     const when = secs < 5 ? "just now" : secs < 60 ? `${secs}s ago` : `${Math.round(secs/60)}m ago`;
     text.textContent = autoRefreshOn
-      ? `live — last pulled ${when}, refreshes automatically every 3 min`
-      : `last pulled ${when} — auto-refresh paused`;
-    if(secs > 240) dot.classList.add("stale"); else dot.classList.remove("stale");
+      ? `live — last pulled ${when}, auto-retrying any timed-out countries every ${AUTO_REFRESH_MS/60000} min`
+      : `last pulled ${when} — auto-refresh off, table stays as-is until you click Refresh`;
+    if(autoRefreshOn && secs > 240) dot.classList.add("stale"); else dot.classList.remove("stale");
   }
   tick();
   liveTimer = setInterval(tick, 1000);
@@ -438,7 +443,7 @@ function buildOverviewTable(){
     tr.appendChild(cells.total); tr.appendChild(cells.en); tr.appendChild(cells.fr);
     tr.appendChild(cells.gap); tr.appendChild(cells.gender);
     tbody.appendChild(tr);
-    rowState.set(qid, {tr, cells});
+    rowState.set(qid, {tr, cells, data: null});
   });
   table.appendChild(tbody);
   const out = document.getElementById("overviewTableWrap");
@@ -455,7 +460,9 @@ function genderBarEl(d){
   return wrap;
 }
 function fillRow(qid, d){
-  const { tr, cells } = rowState.get(qid);
+  const state = rowState.get(qid);
+  const { tr, cells } = state;
+  state.data = d;
   tr.classList.remove("pending","error");
   const realGap = Math.max(0, d.total - d.covered); // exact now — covered checks EN/FR/AR/PT/local together
   cells.total.textContent = fmt(d.total);
@@ -489,6 +496,22 @@ async function retryOne(qid, name){
     markRowError(qid, name, e);
   }
 }
+// Aggregates the ledger from whatever rows currently hold data — used after
+// a full load AND after a partial (failed-rows-only) retry, so the ledger
+// stays correct either way without re-summing everything by hand each time.
+function recomputeLedger(){
+  const totals = {total:0, langSum:{}, men:0, women:0, other:0};
+  rowState.forEach(state => {
+    const d = state.data;
+    if(!d) return;
+    totals.total += d.total;
+    Object.entries(d.perLang).forEach(([lang, count]) => {
+      totals.langSum[lang] = (totals.langSum[lang]||0) + count;
+    });
+    totals.men += d.men; totals.women += d.women; totals.other += d.other;
+  });
+  renderLedger(totals);
+}
 async function loadOverview(){
   if(overviewRunning) return;
   overviewRunning = true;
@@ -499,7 +522,6 @@ async function loadOverview(){
   status.classList.remove("err");
   buildOverviewTable();
   let done = 0, failed = 0;
-  const totals = {total:0, langSum:{}, men:0, women:0, other:0};
   const startedAt = Date.now();
   status.textContent = `Querying 54 countries, ${POOL_SIZE} at a time…`;
   await runPool(COUNTRIES, POOL_SIZE,
@@ -514,25 +536,44 @@ async function loadOverview(){
         const langs = buildLangSet(localCode);
         const parsed = parseCountryResult(data.results.bindings[0] || {}, langs);
         fillRow(qid, parsed);
-        totals.total += parsed.total;
-        langs.forEach(c => { totals.langSum[c] = (totals.langSum[c]||0) + (parsed.perLang[c]||0); });
-        totals.men += parsed.men; totals.women += parsed.women; totals.other += parsed.other;
       }
       status.textContent = `${done}/${COUNTRIES.length} countries loaded` + (failed ? `, ${failed} timed out (retry inline)` : "") + "…";
     }
   );
   const secs = ((Date.now() - startedAt)/1000).toFixed(1);
   status.textContent = `Done in ${secs}s — ${COUNTRIES.length - failed}/${COUNTRIES.length} countries loaded` + (failed ? `, ${failed} need a retry.` : ".");
-  renderLedger(totals);
+  recomputeLedger();
   startLiveClock(Date.now());
   btn.disabled = false;
   overviewRunning = false;
+}
+// Auto-refresh, when turned on, does NOT re-run all 54 countries — it only
+// retries whichever rows are currently showing an error. Rows that already
+// succeeded are left completely alone, so a fully-loaded table just stays
+// put instead of hitting fresh timeouts on a schedule.
+async function refreshFailedOnly(){
+  const failedQids = Array.from(rowState.entries())
+    .filter(([qid, state]) => state.tr.classList.contains("error"))
+    .map(([qid]) => qid);
+  if(!failedQids.length) return; // nothing to retry — table is already fully loaded
+  const status = document.getElementById("overviewStatus");
+  status.textContent = `Auto-refresh: retrying ${failedQids.length} timed-out countr${failedQids.length===1?"y":"ies"}…`;
+  await runPool(failedQids, POOL_SIZE,
+    (qid) => { const meta = COUNTRIES.find(c => c[0] === qid); return retryOne(qid, meta[1]); },
+    () => {} // retryOne updates its own row directly; nothing extra needed per item
+  );
+  recomputeLedger();
+  startLiveClock(Date.now());
+  const stillFailed = failedQids.filter(qid => rowState.get(qid).tr.classList.contains("error")).length;
+  status.textContent = stillFailed
+    ? `Auto-refresh: retried ${failedQids.length}, ${stillFailed} still timing out.`
+    : `Auto-refresh: all countries now loaded.`;
 }
 document.getElementById("loadOverview").addEventListener("click", loadOverview);
 document.getElementById("autoToggle").addEventListener("click", function(){
   autoRefreshOn = !autoRefreshOn;
   this.textContent = "Auto-refresh: " + (autoRefreshOn ? "on" : "off");
-  if(autoRefreshOn){ refreshInterval = setInterval(loadOverview, AUTO_REFRESH_MS); }
+  if(autoRefreshOn){ refreshInterval = setInterval(refreshFailedOnly, AUTO_REFRESH_MS); }
   else{ clearInterval(refreshInterval); }
 });
 // ---------- country detail ----------
@@ -651,8 +692,10 @@ function renderCountry(people, meta, langs, out){
   out.appendChild(list);
 }
 // ---------- boot ----------
+// Auto-refresh defaults to off, so this just loads once and the table stays
+// as-is — no interval is started here. Turning the toggle on later begins
+// the failed-rows-only retry cycle instead.
 loadOverview();
-refreshInterval = setInterval(loadOverview, AUTO_REFRESH_MS);
 </script>
 </body>
 </html>
