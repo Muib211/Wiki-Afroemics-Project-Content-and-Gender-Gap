@@ -657,11 +657,19 @@ function buildGapCards(){
     const options = eligible.map(([qid, name, local]) =>
       el("option", {value: qid}, card.mode === "local" ? `${name} (${LANG_NAMES[local] || local})` : name)
     );
-    const select = el("select", {}, ...options);
+    // A neutral placeholder is the true default — no country is pre-selected,
+    // so a visitor can browse every card freely without one having silently
+    // "picked" a country (Algeria, alphabetically first) on their behalf.
+    const placeholder = el("option", {value: "", selected: "selected", disabled: "disabled"}, "Select a country…");
+    const select = el("select", {}, placeholder, ...options);
     const status = el("div", {class:"gc-status"}, "");
     const results = el("div", {class:"gc-results"}, "");
-    const runBtn = el("button", {class:"gc-run", type:"button"}, "Show gap");
-    runBtn.addEventListener("click", () => runGapCard(card, select.value, status, results, runBtn));
+    const runBtn = el("button", {class:"gc-run", type:"button", disabled: "disabled"}, "Show gap");
+    select.addEventListener("change", () => { runBtn.disabled = !select.value; });
+    runBtn.addEventListener("click", () => {
+      if(!select.value) return;
+      runGapCard(card, select.value, status, results, runBtn);
+    });
     grid.appendChild(el("div", {class:"gapcard", style:`--card-accent:${card.accent}`},
       el("div", {class:"gc-head"}, el("h3", {}, card.title), el("span", {class:"gc-badge"}, card.badge)),
       el("div", {class:"gc-sub"}, card.sub),
