@@ -440,8 +440,10 @@ let overviewRunning = false;
 function buildOverviewTable(){
   const table = el("table");
   const thead = el("tr", {},
-    el("th",{},"Country"), el("th",{},"Total"), el("th",{},"With EN"), el("th",{},"With FR"),
-    el("th",{title:"No article in EN, FR, AR, PT, or the local language"},"Gap (all langs checked)"),
+    el("th",{},"Country"),
+    el("th",{class:"num"},"Total"),
+    el("th",{class:"num", title:"Has an article in at least one of EN, FR, AR, PT, or the local language"},"With Wikipedia Article"),
+    el("th",{class:"num", title:"No article in EN, FR, AR, PT, or the local language"},"Without Wikipedia Article"),
     el("th",{},"Gender split")
   );
   table.appendChild(el("thead",{},thead));
@@ -449,10 +451,10 @@ function buildOverviewTable(){
   COUNTRIES.forEach(([qid, name]) => {
     const tr = el("tr", {class:"pending", "data-qid": qid});
     tr.appendChild(el("td", {}, name));
-    const cells = { total: el("td",{class:"num"},"…"), en: el("td",{class:"num"},"…"),
-                     fr: el("td",{class:"num"},"…"), gap: el("td",{class:"num"},"…"),
+    const cells = { total: el("td",{class:"num"},"…"), covered: el("td",{class:"num"},"…"),
+                     gap: el("td",{class:"num"},"…"),
                      gender: el("td",{}, "") };
-    tr.appendChild(cells.total); tr.appendChild(cells.en); tr.appendChild(cells.fr);
+    tr.appendChild(cells.total); tr.appendChild(cells.covered);
     tr.appendChild(cells.gap); tr.appendChild(cells.gender);
     tbody.appendChild(tr);
     rowState.set(qid, {tr, cells, data: null});
@@ -476,10 +478,9 @@ function fillRow(qid, d){
   const { tr, cells } = state;
   state.data = d;
   tr.classList.remove("pending","error");
-  const realGap = Math.max(0, d.total - d.covered); // exact now — covered checks EN/FR/AR/PT/local together
+  const realGap = Math.max(0, d.total - d.covered); // exact — covered checks EN/FR/AR/PT/local together
   cells.total.textContent = fmt(d.total);
-  cells.en.textContent = fmt(d.perLang.en || 0);
-  cells.fr.textContent = fmt(d.perLang.fr || 0);
+  cells.covered.textContent = fmt(d.covered);
   cells.gap.textContent = fmt(realGap);
   cells.gap.className = "num gapcount";
   cells.gender.innerHTML = "";
@@ -488,7 +489,7 @@ function fillRow(qid, d){
 function markRowError(qid, name, err){
   const { tr, cells } = rowState.get(qid);
   tr.classList.remove("pending"); tr.classList.add("error");
-  cells.total.textContent = "—"; cells.en.textContent = "—"; cells.fr.textContent = "—";
+  cells.total.textContent = "—"; cells.covered.textContent = "—";
   cells.gap.innerHTML = ""; cells.gap.className = "num";
   const btn = el("button", {class:"retry", type:"button"}, "retry " + name.toLowerCase());
   btn.addEventListener("click", () => retryOne(qid, name));
