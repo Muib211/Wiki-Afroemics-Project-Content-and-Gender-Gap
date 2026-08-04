@@ -119,7 +119,34 @@
   .tag{font-family:var(--mono); font-size:10.5px; padding:2px 7px; border-radius:10px; text-transform:uppercase; letter-spacing:.04em;}
   .tag.men{background:#e4ecf5; color:var(--men);} .tag.women{background:#f4e6ec; color:var(--women);} .tag.other{background:var(--gold-pale); color:var(--gold-deep);}
   .name-list .qid{font-family:var(--mono); font-size:11.5px; color:#9a947f;}
-  .empty{font-size:14px; color:var(--ink-soft); padding:20px 0;}
+  .empty{font-size:14px; color:var(--ink-soft); padding:14px 0;}
+  /* ---------- gap explorer cards ---------- */
+  .gapgrid{display:grid; grid-template-columns:repeat(auto-fit,minmax(270px,1fr)); gap:18px; margin-top:18px;}
+  .gapcard{
+    --card-accent: var(--navy);
+    border:1px solid var(--line); border-top:4px solid var(--card-accent);
+    background:var(--paper-raised); border-radius:4px; padding:20px;
+    display:flex; flex-direction:column; gap:12px;
+  }
+  .gc-head{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+  .gc-head h3{font-family:var(--serif); font-size:17px; margin:0; color:var(--navy); font-weight:600;}
+  .gc-badge{
+    font-family:var(--mono); font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.06em;
+    padding:3px 9px; border-radius:10px; background:var(--card-accent); color:#fff; flex-shrink:0;
+  }
+  .gc-sub{font-size:12.5px; color:var(--ink-soft); margin:-6px 0 0;}
+  .gapcard select{width:100%; min-width:0;}
+  .gc-run{width:100%; background:var(--card-accent); border-color:var(--card-accent);}
+  .gc-run:hover{filter:brightness(0.88);}
+  .gc-status{font-family:var(--mono); font-size:11.5px; color:var(--ink-soft); min-height:16px;}
+  .gc-results{max-height:280px; overflow-y:auto;}
+  .gc-count{font-family:var(--mono); font-size:26px; font-weight:700; color:var(--card-accent); line-height:1;}
+  .gc-count .gc-count-lab{font-family:var(--sans); font-size:11.5px; font-weight:500; color:var(--ink-soft); margin-left:8px;}
+  .gc-list{list-style:none; margin:10px 0 0; padding:0; font-size:12.5px; border-top:1px solid var(--line);}
+  .gc-list li{padding:7px 0; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; gap:8px;}
+  .gc-list li:last-child{border-bottom:none;}
+  .gc-list a{color:var(--navy); text-decoration:none; font-weight:600;}
+  .gc-list a:hover{text-decoration:underline; color:var(--gold-deep);}
   footer{margin-top:44px; font-size:12.5px; color:var(--ink-soft);}
   footer .ribbon{margin-bottom:22px;}
   .signature{font-family:var(--serif); font-style:italic; font-size:15px; color:var(--gold-deep); margin-top:10px;}
@@ -180,18 +207,8 @@
     <h2>Continental overview</h2>
     <div class="hint">Scientists &amp; academics per country, article coverage, and the gender split — refreshed automatically.</div>
     <div class="fix-note">
-      <b>How this stays fast:</b> instead of one giant SPARQL query joining all 54 countries, this fires 54 small,
-      single-country queries, a few at a time, and streams each row in the moment it lands; so the table fills in
-      live instead of making you wait on the slowest country.
-      <br><br>
-      <b>Occupation matching:</b> a person counts if their occupation is scientist, researcher, academic, or
-      university teacher or <em>any subclass of those </em> (e.g. "linguist," "biologist," "historian," "professor
-      of X"), via Wikidata's subclass-of (<code>P279</code>) chain. This catches people whose occupation statement
-      is more specific than the four broad classes, at the cost of a slower per-country query. That is, a country with a
-      lot of items can occasionally time out and need the inline retry button below.
-      <br><br>
       <b>Language coverage:</b> every country checks <b>English, French, Arabic, and Portuguese</b> Wikipedia
-      for every person, not just the country's "home" language, plus each country's specific official local
+      for every person — not just the country's "home" language — plus each country's specific official local
       language where one is set (Swahili, Amharic, Malagasy, Somali, Kinyarwanda, Spanish). Someone only counts
       as a genuine gap if they have <em>no</em> article in any of those. The "With EN" / "With FR" columns below
       are shown for scale, but the Gap column reflects the full multi-language check.
@@ -215,14 +232,11 @@
     </div>
   </section>
   <section class="panel">
-    <h2>Country detail</h2>
-    <div class="hint">Full breakdown across every language checked (English, French, Arabic, Portuguese, and the country's local language where set), gender per person, and the actual names of people with no article anywhere.</div>
-    <div class="controls">
-      <div><label for="countrySelect">Country</label><select id="countrySelect"></select></div>
-      <button id="loadCountry">Run country query</button>
-    </div>
-    <div class="status" id="countryStatus"></div>
-    <div id="countryResult"></div>
+    <h2>Gap explorer</h2>
+    <div class="hint">Pick a country in any card and run it — each card checks a different slice of coverage, from
+      one specific language to everything at once. Results load independently, so running one never waits on
+      another.</div>
+    <div class="gapgrid" id="gapGrid"></div>
   </section>
   <footer>
     <svg class="ribbon" viewBox="0 0 320 14" preserveAspectRatio="none" aria-hidden="true">
@@ -330,9 +344,7 @@ document.getElementById("brandLogo").addEventListener("error", function(){
     "WA");
   this.replaceWith(wrap);
 });
-// ---------- country dropdown ----------
-const countrySelect = document.getElementById("countrySelect");
-COUNTRIES.forEach(([qid, name]) => countrySelect.appendChild(el("option", {value: qid}, name)));
+// ---------- gap explorer cards populate their own per-card country selects (see below) ----------
 // Shared occupation-matching graph pattern: walks every P106 statement's value
 // up its subclass-of (P279) chain and keeps the person if any ancestor (or the
 // value itself) is one of the four root occupations. This is what catches
@@ -576,121 +588,127 @@ document.getElementById("autoToggle").addEventListener("click", function(){
   if(autoRefreshOn){ refreshInterval = setInterval(refreshFailedOnly, AUTO_REFRESH_MS); }
   else{ clearInterval(refreshInterval); }
 });
-// ---------- country detail ----------
-document.getElementById("loadCountry").addEventListener("click", loadCountry);
-function detailQuery(qid, langs){
-  const optionals = langs.map(c =>
-    `OPTIONAL { ?w_${c} schema:about ?person; schema:isPartOf <https://${c}.wikipedia.org/>. }`
-  ).join("\n      ");
-  const selectVars = langs.map(c => `?w_${c}`).join(" ");
+// ---------- gap explorer (six cards) ----------
+// Every card — single-language or "all languages combined" — uses the same
+// query shape: match scientists/academics for the country, then MINUS out
+// anyone who has a sitelink into any of the wiki(s) in `langs`. A single-
+// language card passes a one-item langs array; the combined card passes the
+// full set (buildLangSet). This is simpler and lighter than the old
+// OPTIONAL-per-language + JS dedupe approach, since MINUS lets the endpoint
+// exclude matches early rather than joining every language in and filtering after.
+function gapQuery(qid, langs){
+  const wikis = langs.map(c => `<https://${c}.wikipedia.org/>`).join(" ");
   return `
-    SELECT ?person ?personLabel ${selectVars} ?gender
+    SELECT DISTINCT ?person ?personLabel ?gender
     WHERE {
       ?person wdt:P27 wd:${qid}.
       ${OCC_PATTERN}
       OPTIONAL { ?person wdt:P21 ?gender. }
-      ${optionals}
+      MINUS {
+        ?w schema:about ?person; schema:isPartOf ?wiki.
+        VALUES ?wiki { ${wikis} }
+      }
       SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
     }
     LIMIT 4000
   `;
 }
-function genderTag(p){
-  if(p.isMale && p.isFemale) return {cls:"other", label:"Man &amp; woman (dual-tagged)"};
-  if(p.isMale) return {cls:"men", label:"Man"};
-  if(p.isFemale) return {cls:"women", label:"Woman"};
-  return {cls:"other", label:"Other / unspecified"};
-}
-// De-duplicate rows per person (a person can appear more than once if they have
-// several optional matches, more than one P21 statement, or more than one
-// qualifying P106 statement under the subclass-aware occupation match) and OR
-// their flags together per language — this is what lets someone tagged both
-// male and female show as both, and someone with e.g. both an Arabic and an
-// English article show coverage in both, instead of silently collapsing to
-// whichever row SPARQL happened to return first.
-function dedupePeople(rows, langs){
+// A person can still appear more than once (a second qualifying P106
+// statement, or more than one P21 value) — collapse to one row per person
+// and OR the gender flags together, same reasoning as the continental query.
+function dedupeGapRows(rows){
   const byPerson = new Map();
   rows.forEach(r => {
     const id = r.person.value;
-    const existing = byPerson.get(id) || {
-      person: r.person, personLabel: r.personLabel,
-      langs: {}, isMale: false, isFemale: false
-    };
-    langs.forEach(c => { if(r["w_" + c]) existing.langs[c] = true; });
+    const existing = byPerson.get(id) || { person: r.person, personLabel: r.personLabel, isMale: false, isFemale: false };
     if(r.gender && r.gender.value === MALE) existing.isMale = true;
     if(r.gender && r.gender.value === FEMALE) existing.isFemale = true;
     byPerson.set(id, existing);
   });
   return Array.from(byPerson.values());
 }
-async function loadCountry(){
-  const btn = document.getElementById("loadCountry");
-  const status = document.getElementById("countryStatus");
-  const out = document.getElementById("countryResult");
-  const qid = countrySelect.value;
-  const meta = COUNTRIES.find(c => c[0]===qid);
-  const langs = buildLangSet(meta[2]);
+function gapGenderTag(p){
+  if(p.isMale && p.isFemale) return {cls:"other", label:"Man &amp; woman"};
+  if(p.isMale) return {cls:"men", label:"Man"};
+  if(p.isFemale) return {cls:"women", label:"Woman"};
+  return {cls:"other", label:"Other/unspec."};
+}
+const GAP_CARDS = [
+  { id:"all",   title:"All checked languages",   badge:"ALL", accent:"#1b2a4a",
+    sub:"No article anywhere — EN, FR, AR, PT, and the local language", mode:"all" },
+  { id:"en",    title:"English",                 badge:"EN",  accent:"#2c5c8a",
+    sub:"Missing an English Wikipedia article", mode:"single", lang:"en" },
+  { id:"fr",    title:"French",                  badge:"FR",  accent:"#8e6423",
+    sub:"Missing a French Wikipedia article", mode:"single", lang:"fr" },
+  { id:"ar",    title:"Arabic",                  badge:"AR",  accent:"#3f7d6b",
+    sub:"Missing an Arabic Wikipedia article", mode:"single", lang:"ar" },
+  { id:"pt",    title:"Portuguese",               badge:"PT",  accent:"#9c4f6e",
+    sub:"Missing a Portuguese Wikipedia article", mode:"single", lang:"pt" },
+  { id:"local", title:"Official local language",  badge:"LOC", accent:"#6b4fa0",
+    sub:"Missing the country's own official-language article", mode:"local" }
+];
+function buildGapCards(){
+  const grid = document.getElementById("gapGrid");
+  grid.innerHTML = "";
+  GAP_CARDS.forEach(card => {
+    // The "local" card only makes sense for countries that actually have one
+    // official local language mapped — the other 53-ish minus null entries.
+    const eligible = COUNTRIES.filter(([qid, name, local]) => card.mode !== "local" || local);
+    const options = eligible.map(([qid, name, local]) =>
+      el("option", {value: qid}, card.mode === "local" ? `${name} (${LANG_NAMES[local] || local})` : name)
+    );
+    const select = el("select", {}, ...options);
+    const status = el("div", {class:"gc-status"}, "");
+    const results = el("div", {class:"gc-results"}, "");
+    const runBtn = el("button", {class:"gc-run", type:"button"}, "Show gap");
+    runBtn.addEventListener("click", () => runGapCard(card, select.value, status, results, runBtn));
+    grid.appendChild(el("div", {class:"gapcard", style:`--card-accent:${card.accent}`},
+      el("div", {class:"gc-head"}, el("h3", {}, card.title), el("span", {class:"gc-badge"}, card.badge)),
+      el("div", {class:"gc-sub"}, card.sub),
+      select,
+      runBtn,
+      status,
+      results
+    ));
+  });
+}
+async function runGapCard(card, qid, status, results, btn){
+  const meta = COUNTRIES.find(c => c[0] === qid);
   btn.disabled = true;
-  status.textContent = `Querying Wikidata for ${meta[1]}…`;
-  status.classList.remove("err");
-  out.innerHTML = "";
+  status.textContent = `Querying ${meta[1]}…`;
+  results.innerHTML = "";
   try{
-    const data = await runSparql(detailQuery(qid, langs), 45000);
-    const people = dedupePeople(data.results.bindings, langs);
-    status.textContent = `Done. ${people.length} people found for ${meta[1]}.`;
-    renderCountry(people, meta, langs, out);
+    const langs = card.mode === "all" ? buildLangSet(meta[2])
+                : card.mode === "local" ? [meta[2]]
+                : [card.lang];
+    const data = await runSparql(gapQuery(qid, langs), 40000);
+    const people = dedupeGapRows(data.results.bindings);
+    status.textContent = `${fmt(people.length)} item${people.length===1?"":"s"} — ${meta[1]}.`;
+    if(!people.length){
+      results.appendChild(el("div", {class:"empty"}, "No gap — everyone already has coverage here."));
+    }else{
+      results.appendChild(el("div", {class:"gc-count"}, fmt(people.length), el("span",{class:"gc-count-lab"},"missing")));
+      const list = el("ul", {class:"gc-list"});
+      people.forEach(p => {
+        const personQid = p.person.value.split("/").pop();
+        const name = p.personLabel ? p.personLabel.value : personQid;
+        const g = gapGenderTag(p);
+        const tagEl = el("span", {class:"tag " + g.cls});
+        tagEl.innerHTML = g.label;
+        list.appendChild(el("li", {},
+          el("a", {href: p.person.value, target:"_blank", rel:"noopener"}, name),
+          tagEl
+        ));
+      });
+      results.appendChild(list);
+    }
   }catch(e){
-    status.textContent = "Query failed: " + e.message + " — subclass-aware occupation matching plus multi-language coverage is heavier than a narrow exact-match query, so Wikidata's endpoint can be slow for a broad country; try again.";
-    status.classList.add("err");
+    status.textContent = "Query failed: " + e.message + " — try again.";
   }finally{
     btn.disabled = false;
   }
 }
-function renderCountry(people, meta, langs, out){
-  out.innerHTML = "";
-  if(!people.length){
-    out.appendChild(el("div",{class:"empty"}, `No matching Wikidata items found for ${meta[1]}.`));
-    return;
-  }
-  const total = people.length;
-  const men = people.filter(p => p.isMale).length;
-  const women = people.filter(p => p.isFemale).length;
-  const other = people.filter(p => !p.isMale && !p.isFemale).length;
-  const gapPeople = people.filter(p => langs.every(c => !p.langs[c]));
-  const summary = el("table");
-  const rows = [
-    el("tr",{}, el("td",{},"Total on Wikidata"), el("td",{class:"num"}, fmt(total)))
-  ];
-  langs.forEach(c => {
-    const count = people.filter(p => p.langs[c]).length;
-    rows.push(el("tr",{}, el("td",{}, `With ${LANG_NAMES[c] || c} article`), el("td",{class:"num"}, fmt(count))));
-  });
-  rows.push(el("tr",{}, el("td",{},"Men"), el("td",{class:"num"}, fmt(men))));
-  rows.push(el("tr",{}, el("td",{},"Women"), el("td",{class:"num"}, fmt(women))));
-  rows.push(el("tr",{}, el("td",{},"Other / unspecified"), el("td",{class:"num"}, fmt(other))));
-  rows.push(el("tr",{}, el("td",{}, el("strong",{},`No article in ${langs.map(c=>LANG_NAMES[c]||c).join(", ")} — total gap`)),
-      el("td",{class:"num gapcount"}, fmt(gapPeople.length))));
-  summary.appendChild(el("tbody",{}, ...rows));
-  out.appendChild(summary);
-  out.appendChild(el("h2",{style:"margin-top:24px;font-family:var(--serif);font-size:19px;color:var(--navy);"}, `People with no Wikipedia article (${gapPeople.length})`));
-  if(!gapPeople.length){
-    out.appendChild(el("div",{class:"empty"}, "No gap — everyone in this list already has coverage in at least one of the checked languages."));
-    return;
-  }
-  const list = el("ul",{class:"name-list"});
-  gapPeople.forEach(p => {
-    const qid = p.person.value.split("/").pop();
-    const name = p.personLabel ? p.personLabel.value : qid;
-    const g = genderTag(p);
-    const tagEl = el("span",{class:"tag "+g.cls});
-    tagEl.innerHTML = g.label;
-    list.appendChild(el("li",{},
-      el("a",{href:p.person.value, target:"_blank", rel:"noopener"}, name),
-      el("span",{class:"meta"}, tagEl, el("span",{class:"qid"}, qid))
-    ));
-  });
-  out.appendChild(list);
-}
+buildGapCards();
 // ---------- boot ----------
 // Auto-refresh defaults to off, so this just loads once and the table stays
 // as-is — no interval is started here. Turning the toggle on later begins
