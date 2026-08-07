@@ -339,10 +339,10 @@ function diasporaCountryQuery(qid, localCode){
              (MAX(IF(?g = <${MALE}>, 1, 0)) AS ?isMale)
              (MAX(IF(?g = <${FEMALE}>, 1, 0)) AS ?isFemale)
       WHERE {
+        ${residencyPattern(qid)}
         VALUES ?nat { ${AFRICAN_NAT_VALUES} }
         ?person wdt:P27 ?nat.
         ${OCC_PATTERN}
-        ${residencyPattern(qid)}
         OPTIONAL { ?person wdt:P21 ?g. }
         ${optionals}
       }
@@ -526,10 +526,10 @@ function gapQuery(qid, langs){
   return `
     SELECT DISTINCT ?person ?personLabel ?natLabel ?gender
     WHERE {
+      ${residencyPattern(qid)}
       VALUES ?nat { ${AFRICAN_NAT_VALUES} }
       ?person wdt:P27 ?nat.
       ${OCC_PATTERN}
-      ${residencyPattern(qid)}
       OPTIONAL { ?person wdt:P21 ?gender. }
       MINUS {
         ?w schema:about ?person; schema:isPartOf ?wiki.
