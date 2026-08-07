@@ -193,12 +193,14 @@
     <h2>Diaspora overview</h2>
     <div class="hint">African academics &amp; scientists per receiving country, Wikipedia coverage, and the gender split.</div>
     <div class="fix-note">
-      <b>Who counts:</b> a person's citizenship (<code>P27</code>) must be one of the 54 African countries, their
-      occupation must match scientist / researcher / academic / university teacher or a subclass of one, <em>and</em>
-      Wikidata must record a tie to the receiving country — residence (<code>P551</code>), work location
-      (<code>P937</code>), or an employer (<code>P108</code>) based there. Someone with none of those three signals
-      recorded won't show up here even if they are, in fact, living abroad — this reflects Wikidata's coverage, not
-      the full reality.
+      <b>Who counts:</b> a person's citizenship (<code>P27</code>) must be one of the 54 African countries — narrowed
+      further, per receiving country, to nationalities whose official language (<code>P37</code>) matches: only
+      anglophone African countries are checked for the UK, US, and Canada; only francophone African countries are
+      checked for France; Germany still checks all 54. Their occupation must also match scientist / researcher /
+      academic / university teacher or a subclass of one, <em>and</em> Wikidata must record a tie to the receiving
+      country — residence (<code>P551</code>), work location (<code>P937</code>), or an employer (<code>P108</code>)
+      based there. Someone with none of those three signals recorded won't show up here even if they are, in fact,
+      living abroad — this reflects Wikidata's coverage, not the full reality.
       <br><br>
       <b>Language coverage:</b> same as the main tracker — English, French, Arabic, and Portuguese are checked for
       every country, plus each receiving country's own language on top (German, for Germany).
@@ -225,7 +227,9 @@
       <rect width="320" height="14" fill="url(#weaveTop)"/>
     </svg>
     <div>Data: Wikidata Query Service, queried live via SPARQL. Nationality via <code>P27</code> against the same 54
-    African countries as the main tracker; occupation match: scientist, academic/university teacher, or researcher
+    African countries as the main tracker, restricted per receiving country by official language
+    (<code>P37</code>): anglophone Africa for the UK/US/Canada, francophone Africa for France, all 54 for Germany;
+    occupation match: scientist, academic/university teacher, or researcher
     (<code>P106</code>), including any subclass via <code>wdt:P279*</code>; diaspora residency via
     <code>P551</code> (residence), <code>P937</code> (work location), or <code>P108</code>→<code>P17</code>
     (employer's country); gender via <code>P21</code>.</div>
@@ -239,6 +243,8 @@ const PER_QUERY_TIMEOUT_MS = 45000; // heavier than the main tracker's per-count
 const AUTO_REFRESH_MS = 5 * 60 * 1000;
 const MALE = "http://www.wikidata.org/entity/Q6581097";
 const FEMALE = "http://www.wikidata.org/entity/Q6581072";
+const LANG_ENGLISH = "wd:Q1860";
+const LANG_FRENCH = "wd:Q150";
 const OCC_ROOTS = ["wd:Q901", "wd:Q1650915", "wd:Q3400985", "wd:Q1622272"];
 const CORE_LANGS = ["en", "fr", "ar", "pt"];
 const LANG_NAMES = { en:"English", fr:"French", ar:"Arabic", pt:"Portuguese", de:"German" };
@@ -248,13 +254,16 @@ function buildLangSet(localCode){
   return codes;
 }
 // The five receiving countries this page tracks, with each one's own primary
-// Wikipedia language (only Germany's "de" isn't already in CORE_LANGS).
+// Wikipedia language, plus an optional 4th field: an official-language QID
+// (via P37) to restrict which African nationalities are even considered.
+// UK/US/Canada -> anglophone Africa (P37 = English), France -> francophone
+// Africa (P37 = French). Germany keeps the full 54-country list.
 const DIASPORA_COUNTRIES = [
-  ["Q145","United Kingdom","en"],
-  ["Q30","United States","en"],
-  ["Q16","Canada","en"],
-  ["Q183","Germany","de"],
-  ["Q142","France","fr"]
+  ["Q145","United Kingdom","en", LANG_ENGLISH],
+  ["Q30","United States","en", LANG_ENGLISH],
+  ["Q16","Canada","en", LANG_ENGLISH],
+  ["Q183","Germany","de", null],
+  ["Q142","France","fr", LANG_FRENCH]
 ];
 // The same 54 African country QIDs as the main Content & Gender Gap Tracker —
 // kept in sync by hand; a person must hold citizenship in one of these to
@@ -316,8 +325,18 @@ function residencyPattern(qid){
           ?employer wdt:P17 wd:${qid}.
         }`;
 }
+// natLangFilter is an optional QID (LANG_ENGLISH / LANG_FRENCH) that restricts
+// the African VALUES set to countries whose official language (P37) matches —
+// e.g. only anglophone African countries for UK/US/Canada. null means no
+// restriction (all 54 countries), as for Germany.
+function nationalityPattern(natLangFilter){
+  const langJoin = natLangFilter ? `\n        ?nat wdt:P37 ${natLangFilter}.` : "";
+  return `
+        VALUES ?nat { ${AFRICAN_NAT_VALUES} }
+        ?person wdt:P27 ?nat.${langJoin}`;
+}
 // ---------- per-country diaspora query (used by the overview table) ----------
-function diasporaCountryQuery(qid, localCode){
+function diasporaCountryQuery(qid, localCode, natLangFilter){
   const langs = buildLangSet(localCode);
   const optionals = langs.map(c =>
     `OPTIONAL { ?w_${c} schema:about ?person; schema:isPartOf <https://${c}.wikipedia.org/>. }`
@@ -341,8 +360,7 @@ function diasporaCountryQuery(qid, localCode){
       WHERE {
         hint:Query hint:optimizer "None".
         ${residencyPattern(qid)}
-        VALUES ?nat { ${AFRICAN_NAT_VALUES} }
-        ?person wdt:P27 ?nat.
+        ${nationalityPattern(natLangFilter)}
         ${OCC_PATTERN}
         OPTIONAL { ?person wdt:P21 ?g. }
         ${optionals}
@@ -445,7 +463,7 @@ async function retryOne(qid, name){
   const { tr } = rowState.get(qid);
   tr.classList.add("pending"); tr.classList.remove("error");
   try{
-    const data = await runSparql(diasporaCountryQuery(meta[0], meta[2]), PER_QUERY_TIMEOUT_MS);
+    const data = await runSparql(diasporaCountryQuery(meta[0], meta[2], meta[3]), PER_QUERY_TIMEOUT_MS);
     const parsed = parseCountryResult(data.results.bindings[0] || {});
     fillRow(qid, parsed);
   }catch(e){
@@ -475,7 +493,7 @@ async function loadOverview(){
   const startedAt = Date.now();
   status.textContent = `Querying ${DIASPORA_COUNTRIES.length} countries…`;
   await runPool(DIASPORA_COUNTRIES, POOL_SIZE,
-    ([qid, name, localCode]) => runSparql(diasporaCountryQuery(qid, localCode), PER_QUERY_TIMEOUT_MS),
+    ([qid, name, localCode, natLangFilter]) => runSparql(diasporaCountryQuery(qid, localCode, natLangFilter), PER_QUERY_TIMEOUT_MS),
     (idx, [qid, name], data, err) => {
       done++;
       bar.style.width = Math.round(100*done/DIASPORA_COUNTRIES.length) + "%";
@@ -522,15 +540,14 @@ document.getElementById("autoToggle").addEventListener("click", function(){
   else{ clearInterval(refreshInterval); }
 });
 // ---------- gap explorer (six cards, scoped to the 5 receiving countries) ----------
-function gapQuery(qid, langs){
+function gapQuery(qid, langs, natLangFilter){
   const wikis = langs.map(c => `<https://${c}.wikipedia.org/>`).join(" ");
   return `
     SELECT DISTINCT ?person ?personLabel ?natLabel ?gender
     WHERE {
       hint:Query hint:optimizer "None".
       ${residencyPattern(qid)}
-      VALUES ?nat { ${AFRICAN_NAT_VALUES} }
-      ?person wdt:P27 ?nat.
+      ${nationalityPattern(natLangFilter)}
       ${OCC_PATTERN}
       OPTIONAL { ?person wdt:P21 ?gender. }
       MINUS {
@@ -612,7 +629,7 @@ async function runGapCard(card, qid, status, results, btn){
     const langs = card.mode === "all" ? buildLangSet(meta[2])
                 : card.mode === "local" ? [meta[2]]
                 : [card.lang];
-    const data = await runSparql(gapQuery(qid, langs), PER_QUERY_TIMEOUT_MS);
+    const data = await runSparql(gapQuery(qid, langs, meta[3]), PER_QUERY_TIMEOUT_MS);
     const people = dedupeGapRows(data.results.bindings);
     status.textContent = `${fmt(people.length)} item${people.length===1?"":"s"} — ${meta[1]}.`;
     if(!people.length){
