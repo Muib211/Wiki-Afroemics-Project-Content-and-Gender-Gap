@@ -88,8 +88,6 @@
   button:focus-visible, select:focus-visible{outline:3px solid var(--gold); outline-offset:2px;}
   .status{font-family:var(--mono); font-size:12.5px; color:var(--ink-soft); margin-top:14px; min-height:18px;}
   .status.err{color:var(--gap);}
-  .progressbar{height:4px; background:var(--navy-pale); border-radius:2px; margin-top:10px; overflow:hidden;}
-  .progressbar > div{height:100%; background:var(--gold); width:0%; transition:width .25s ease;}
   table{width:100%; border-collapse:collapse; font-size:13.5px; margin-top:14px;}
   th{text-align:left; font-family:var(--mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); border-bottom:1.5px solid var(--navy); padding:8px 9px;}
   td{padding:8px 9px; border-bottom:1px solid var(--line); vertical-align:middle;}
@@ -186,7 +184,7 @@
     </div>
     <div class="live-row">
       <span class="live-dot" id="liveDot"></span>
-      <span id="liveText">connecting…</span>
+      <span id="liveText">loading…</span>
     </div>
   </section>
   <section class="panel">
@@ -205,15 +203,12 @@
       <b>Language coverage:</b> same as the main tracker — English, French, Arabic, and Portuguese are checked for
       every country, plus each receiving country's own language on top (German, for Germany).
       <br><br>
-      <b>Auto-refresh:</b> off by default; turning it on only retries a country still showing an error, the same as
-      the main tracker.
-    </div>
-    <div class="controls">
-      <button id="loadOverview">Refresh diaspora data</button>
-      <button id="autoToggle" class="ghost" type="button">Auto-refresh: off</button>
+      <b>Freshness:</b> this page reads precomputed numbers from <code>diaspora-data.json</code> instead of
+      querying Wikidata live in your browser — the heavy queries used to time out constantly against the shared
+      public endpoint, so they now run offline on a schedule instead. See the timestamp above for how current the
+      numbers are.
     </div>
     <div class="status" id="overviewStatus"></div>
-    <div class="progressbar"><div id="overviewProgress"></div></div>
     <div id="overviewTableWrap"></div>
   </section>
   <section class="panel">
@@ -226,49 +221,33 @@
     <svg class="ribbon" viewBox="0 0 320 14" preserveAspectRatio="none" aria-hidden="true">
       <rect width="320" height="14" fill="url(#weaveTop)"/>
     </svg>
-    <div>Data: Wikidata Query Service, queried live via SPARQL. Nationality via <code>P27</code> against the same 54
+    <div>Data: Wikidata Query Service, precomputed offline on a schedule (not queried live in your browser) and
+    served as a static file. Nationality via <code>P27</code> against the same 54
     African countries as the main tracker, restricted per receiving country by official language
     (<code>P37</code>): anglophone Africa for the UK/US/Canada, francophone Africa for France, all 54 for Germany;
     occupation match: scientist, academic/university teacher, or researcher
-    (<code>P106</code>), including any subclass via <code>wdt:P279*</code>; diaspora residency via
+    (<code>P106</code>), including any subclass of one; diaspora residency via
     <code>P551</code> (residence), <code>P937</code> (work location), or <code>P108</code>→<code>P17</code>
     (employer's country); gender via <code>P21</code>.</div>
     <div class="signature">— built for the Wiki AfroDemics Project, to make the invisible, visible, wherever they are.</div>
   </footer>
 </div>
 <script>
-const ENDPOINT = "https://query.wikidata.org/sparql";
-const POOL_SIZE = 3;
-const PER_QUERY_TIMEOUT_MS = 45000; // heavier than the main tracker's per-country query: 54-item nationality VALUES + a 3-way residency UNION on top of the subclass occupation match
-const AUTO_REFRESH_MS = 5 * 60 * 1000;
+const DATA_URL = "diaspora-data.json";
 const MALE = "http://www.wikidata.org/entity/Q6581097";
 const FEMALE = "http://www.wikidata.org/entity/Q6581072";
-const LANG_ENGLISH = "wd:Q1860";
-const LANG_FRENCH = "wd:Q150";
-const OCC_ROOTS = ["wd:Q901", "wd:Q1650915", "wd:Q3400985", "wd:Q1622272"];
 const CORE_LANGS = ["en", "fr", "ar", "pt"];
 const LANG_NAMES = { en:"English", fr:"French", ar:"Arabic", pt:"Portuguese", de:"German" };
-function buildLangSet(localCode){
-  const codes = CORE_LANGS.slice();
-  if(localCode && !codes.includes(localCode)) codes.push(localCode);
-  return codes;
-}
 // The five receiving countries this page tracks, with each one's own primary
-// Wikipedia language, plus an optional 4th field: an official-language QID
-// (via P37) to restrict which African nationalities are even considered.
-// UK/US/Canada -> anglophone Africa (P37 = English), France -> francophone
-// Africa (P37 = French). Germany keeps the full 54-country list.
+// Wikipedia language. Must match precompute-diaspora.mjs exactly, since QIDs
+// here are used as keys into diaspora-data.json.
 const DIASPORA_COUNTRIES = [
-  ["Q145","United Kingdom","en", LANG_ENGLISH],
-  ["Q30","United States","en", LANG_ENGLISH],
-  ["Q16","Canada","en", LANG_ENGLISH],
-  ["Q183","Germany","de", null],
-  ["Q142","France","fr", LANG_FRENCH]
+  ["Q145","United Kingdom","en"],
+  ["Q30","United States","en"],
+  ["Q16","Canada","en"],
+  ["Q183","Germany","de"],
+  ["Q142","France","fr"]
 ];
-// The same 54 African country QIDs as the main Content & Gender Gap Tracker —
-// kept in sync by hand; a person must hold citizenship in one of these to
-// count as part of the African diaspora here.
-const AFRICAN_NAT_VALUES = "wd:Q262 wd:Q916 wd:Q962 wd:Q963 wd:Q965 wd:Q967 wd:Q1011 wd:Q1009 wd:Q929 wd:Q657 wd:Q970 wd:Q971 wd:Q974 wd:Q977 wd:Q79 wd:Q983 wd:Q986 wd:Q1050 wd:Q115 wd:Q1000 wd:Q1005 wd:Q117 wd:Q1006 wd:Q1007 wd:Q1008 wd:Q114 wd:Q1013 wd:Q1014 wd:Q1016 wd:Q1019 wd:Q1020 wd:Q912 wd:Q1025 wd:Q1027 wd:Q1028 wd:Q1029 wd:Q1030 wd:Q1032 wd:Q1033 wd:Q1037 wd:Q1039 wd:Q1041 wd:Q1042 wd:Q1044 wd:Q1045 wd:Q258 wd:Q958 wd:Q1049 wd:Q924 wd:Q945 wd:Q948 wd:Q1036 wd:Q953 wd:Q954";
 function el(tag, attrs={}, ...children){
   const n = document.createElement(tag);
   for(const k in attrs) n.setAttribute(k, attrs[k]);
@@ -276,31 +255,6 @@ function el(tag, attrs={}, ...children){
   return n;
 }
 function fmt(n){ return n.toLocaleString("en-US"); }
-async function runSparql(query, timeoutMs){
-  const url = ENDPOINT + "?query=" + encodeURIComponent(query) + "&format=json";
-  const controller = new AbortController();
-  const t = setTimeout(()=>controller.abort(), timeoutMs || 20000);
-  try{
-    const resp = await fetch(url, { headers: { "Accept": "application/sparql-results+json" }, signal: controller.signal });
-    if(!resp.ok) throw new Error("Wikidata returned status " + resp.status);
-    return await resp.json();
-  } finally { clearTimeout(t); }
-}
-async function runPool(items, concurrency, worker, onSettle){
-  let cursor = 0;
-  async function lane(){
-    while(cursor < items.length){
-      const idx = cursor++;
-      try{
-        const result = await worker(items[idx], idx);
-        onSettle(idx, items[idx], result, null);
-      }catch(err){
-        onSettle(idx, items[idx], null, err);
-      }
-    }
-  }
-  await Promise.all(Array.from({length: Math.min(concurrency, items.length)}, lane));
-}
 document.getElementById("brandLogo").addEventListener("error", function(){
   this.onerror = null;
   const wrap = el("div", {class:"fallback-logo", style:
@@ -308,102 +262,39 @@ document.getElementById("brandLogo").addEventListener("error", function(){
     "WA");
   this.replaceWith(wrap);
 });
-// Shared graph patterns: occupation (subclass-aware) and diaspora residency
-// (any one of the three signals is enough).
-const OCC_PATTERN = `
-        ?person p:P106 ?occStatement.
-        ?occStatement (ps:P106/(wdt:P279*)) ?occ.
-        FILTER(?occ IN (${OCC_ROOTS.join(", ")}))`;
-function residencyPattern(qid){
-  return `
-        {
-          ?person wdt:P551 wd:${qid}.
-        } UNION {
-          ?person wdt:P937 wd:${qid}.
-        } UNION {
-          ?person wdt:P108 ?employer.
-          ?employer wdt:P17 wd:${qid}.
-        }`;
+// ---------- data loading ----------
+let DIASPORA_DATA = null;
+function timeAgo(iso){
+  const secs = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
+  if(secs < 60) return "just now";
+  if(secs < 3600) return `${Math.round(secs/60)} min ago`;
+  if(secs < 86400) return `${Math.round(secs/3600)} hr ago`;
+  return `${Math.round(secs/86400)} day${Math.round(secs/86400)===1?"":"s"} ago`;
 }
-// natLangFilter is an optional QID (LANG_ENGLISH / LANG_FRENCH) that restricts
-// the African VALUES set to countries whose official language (P37) matches —
-// e.g. only anglophone African countries for UK/US/Canada. null means no
-// restriction (all 54 countries), as for Germany.
-function nationalityPattern(natLangFilter){
-  const langJoin = natLangFilter ? `\n        ?nat wdt:P37 ${natLangFilter}.` : "";
-  return `
-        VALUES ?nat { ${AFRICAN_NAT_VALUES} }
-        ?person wdt:P27 ?nat.${langJoin}`;
-}
-// ---------- per-country diaspora query (used by the overview table) ----------
-function diasporaCountryQuery(qid, localCode, natLangFilter){
-  const langs = buildLangSet(localCode);
-  const optionals = langs.map(c =>
-    `OPTIONAL { ?w_${c} schema:about ?person; schema:isPartOf <https://${c}.wikipedia.org/>. }`
-  ).join("\n        ");
-  const hasFlags = langs.map(c =>
-    `(MAX(IF(BOUND(?w_${c}), 1, 0)) AS ?has_${c})`
-  ).join("\n             ");
-  const anyCond = langs.map(c => `BOUND(?w_${c})`).join(" || ");
-  return `
-    SELECT (COUNT(?person) AS ?total)
-           (SUM(?hasAny) AS ?covered)
-           (SUM(?isMale) AS ?men)
-           (SUM(?isFemale) AS ?women)
-           (SUM(?isMale * ?isFemale) AS ?both)
-    WHERE {
-      SELECT ?person
-             ${hasFlags}
-             (MAX(IF(${anyCond}, 1, 0)) AS ?hasAny)
-             (MAX(IF(?g = <${MALE}>, 1, 0)) AS ?isMale)
-             (MAX(IF(?g = <${FEMALE}>, 1, 0)) AS ?isFemale)
-      WHERE {
-        hint:Query hint:optimizer "None".
-        ${residencyPattern(qid)}
-        ${nationalityPattern(natLangFilter)}
-        ${OCC_PATTERN}
-        OPTIONAL { ?person wdt:P21 ?g. }
-        ${optionals}
-      }
-      GROUP BY ?person
-    }
-  `;
-}
-function parseCountryResult(binding){
-  const g = k => parseInt(binding[k]?.value ?? "0", 10);
-  const total = g("total"), men = g("men"), women = g("women"), both = g("both"), covered = g("covered");
-  const coveredByMOrF = men + women - both;
-  return { total, covered, men, women, other: Math.max(0, total - coveredByMOrF) };
-}
-// ---------- live ledger ----------
-let liveTimer = null, autoRefreshOn = false, refreshInterval = null;
-function renderLedger(totals){
-  document.getElementById("statPeople").textContent = fmt(totals.total);
-  document.getElementById("statCovered").textContent = fmt(totals.covered);
-  document.getElementById("statMen").textContent = fmt(totals.men);
-  document.getElementById("statWomen").textContent = fmt(totals.women);
-  document.getElementById("statOther").textContent = fmt(totals.other);
-}
-function startLiveClock(lastUpdated){
-  clearInterval(liveTimer);
+async function loadData(){
   const dot = document.getElementById("liveDot");
   const text = document.getElementById("liveText");
-  dot.classList.remove("stale");
-  function tick(){
-    const secs = Math.round((Date.now() - lastUpdated) / 1000);
-    const when = secs < 5 ? "just now" : secs < 60 ? `${secs}s ago` : `${Math.round(secs/60)}m ago`;
-    text.textContent = autoRefreshOn
-      ? `live — last pulled ${when}, auto-retrying any timed-out countries every ${AUTO_REFRESH_MS/60000} min`
-      : `last pulled ${when} — auto-refresh off, table stays as-is until you click Refresh`;
-    if(autoRefreshOn && secs > 240) dot.classList.add("stale"); else dot.classList.remove("stale");
+  try{
+    const resp = await fetch(DATA_URL, {cache:"no-store"});
+    if(!resp.ok) throw new Error("HTTP " + resp.status);
+    DIASPORA_DATA = await resp.json();
+    dot.classList.remove("stale");
+    text.textContent = `data generated ${timeAgo(DIASPORA_DATA.generatedAt)} — re-run precompute-diaspora.mjs to refresh`;
+    if(DIASPORA_DATA.failedCountries && DIASPORA_DATA.failedCountries.length){
+      text.textContent += ` (note: ${DIASPORA_DATA.failedCountries.join(", ")} came back empty on that run)`;
+    }
+    renderOverview();
+    buildGapCards();
+  }catch(e){
+    dot.classList.add("stale");
+    text.textContent = `couldn't load ${DATA_URL} (${e.message}) — run precompute-diaspora.mjs and place the output next to this page`;
+    document.getElementById("overviewStatus").textContent =
+      `No data file found. This page reads precomputed results from ${DATA_URL} instead of querying Wikidata live — see precompute-diaspora.mjs.`;
+    document.getElementById("overviewStatus").classList.add("err");
   }
-  tick();
-  liveTimer = setInterval(tick, 1000);
 }
-// ---------- overview table (streaming, 5 rows) ----------
-const rowState = new Map();
-let overviewRunning = false;
-function buildOverviewTable(){
+// ---------- overview table (rendered once, from static data) ----------
+function renderOverview(){
   const table = el("table");
   const thead = el("tr", {},
     el("th",{},"Country"),
@@ -416,163 +307,39 @@ function buildOverviewTable(){
   );
   table.appendChild(el("thead",{},thead));
   const tbody = el("tbody");
+  const totals = {total:0, covered:0, men:0, women:0, other:0};
   DIASPORA_COUNTRIES.forEach(([qid, name]) => {
-    const tr = el("tr", {class:"pending", "data-qid": qid});
+    const d = (DIASPORA_DATA.overview && DIASPORA_DATA.overview[qid]) || null;
+    const tr = el("tr", {"data-qid": qid});
     tr.appendChild(el("td", {}, name));
-    const cells = {
-      total: el("td",{class:"num"},"…"), covered: el("td",{class:"num"},"…"),
-      gap: el("td",{class:"num"},"…"), men: el("td",{class:"num"},"…"),
-      women: el("td",{class:"num"},"…"), other: el("td",{class:"num"},"…")
-    };
-    tr.appendChild(cells.total); tr.appendChild(cells.covered); tr.appendChild(cells.gap);
-    tr.appendChild(cells.men); tr.appendChild(cells.women); tr.appendChild(cells.other);
+    if(!d){
+      tr.classList.add("error");
+      ["—","—","—","—","—","—"].forEach(v => tr.appendChild(el("td",{class:"num"}, v)));
+    }else{
+      const realGap = Math.max(0, d.total - d.covered);
+      tr.appendChild(el("td",{class:"num"}, fmt(d.total)));
+      tr.appendChild(el("td",{class:"num"}, fmt(d.covered)));
+      tr.appendChild(el("td",{class:"num gapcount"}, fmt(realGap)));
+      tr.appendChild(el("td",{class:"num"}, fmt(d.men)));
+      tr.appendChild(el("td",{class:"num"}, fmt(d.women)));
+      tr.appendChild(el("td",{class:"num"}, fmt(d.other)));
+      totals.total += d.total; totals.covered += d.covered;
+      totals.men += d.men; totals.women += d.women; totals.other += d.other;
+    }
     tbody.appendChild(tr);
-    rowState.set(qid, {tr, cells, data: null});
   });
   table.appendChild(tbody);
   const out = document.getElementById("overviewTableWrap");
   out.innerHTML = "";
   out.appendChild(table);
+  document.getElementById("statPeople").textContent = fmt(totals.total);
+  document.getElementById("statCovered").textContent = fmt(totals.covered);
+  document.getElementById("statMen").textContent = fmt(totals.men);
+  document.getElementById("statWomen").textContent = fmt(totals.women);
+  document.getElementById("statOther").textContent = fmt(totals.other);
+  document.getElementById("overviewStatus").textContent = "";
 }
-function fillRow(qid, d){
-  const state = rowState.get(qid);
-  const { tr, cells } = state;
-  state.data = d;
-  tr.classList.remove("pending","error");
-  const realGap = Math.max(0, d.total - d.covered);
-  cells.total.textContent = fmt(d.total);
-  cells.covered.textContent = fmt(d.covered);
-  cells.gap.textContent = fmt(realGap);
-  cells.gap.className = "num gapcount";
-  cells.men.textContent = fmt(d.men);
-  cells.women.textContent = fmt(d.women);
-  cells.other.textContent = fmt(d.other);
-}
-function markRowError(qid, name, err){
-  const { tr, cells } = rowState.get(qid);
-  tr.classList.remove("pending"); tr.classList.add("error");
-  cells.total.textContent = "—"; cells.covered.textContent = "—";
-  cells.men.textContent = "—"; cells.women.textContent = "—"; cells.other.textContent = "—";
-  cells.gap.innerHTML = ""; cells.gap.className = "num";
-  const btn = el("button", {class:"retry", type:"button"}, "retry " + name.toLowerCase());
-  btn.addEventListener("click", () => retryOne(qid, name));
-  cells.gap.appendChild(btn);
-}
-async function retryOne(qid, name){
-  const meta = DIASPORA_COUNTRIES.find(c => c[0] === qid);
-  const { tr } = rowState.get(qid);
-  tr.classList.add("pending"); tr.classList.remove("error");
-  try{
-    const data = await runSparql(diasporaCountryQuery(meta[0], meta[2], meta[3]), PER_QUERY_TIMEOUT_MS);
-    const parsed = parseCountryResult(data.results.bindings[0] || {});
-    fillRow(qid, parsed);
-  }catch(e){
-    markRowError(qid, name, e);
-  }
-}
-function recomputeLedger(){
-  const totals = {total:0, covered:0, men:0, women:0, other:0};
-  rowState.forEach(state => {
-    const d = state.data;
-    if(!d) return;
-    totals.total += d.total; totals.covered += d.covered;
-    totals.men += d.men; totals.women += d.women; totals.other += d.other;
-  });
-  renderLedger(totals);
-}
-async function loadOverview(){
-  if(overviewRunning) return;
-  overviewRunning = true;
-  const btn = document.getElementById("loadOverview");
-  const status = document.getElementById("overviewStatus");
-  const bar = document.getElementById("overviewProgress");
-  btn.disabled = true;
-  status.classList.remove("err");
-  buildOverviewTable();
-  let done = 0, failed = 0;
-  const startedAt = Date.now();
-  status.textContent = `Querying ${DIASPORA_COUNTRIES.length} countries…`;
-  await runPool(DIASPORA_COUNTRIES, POOL_SIZE,
-    ([qid, name, localCode, natLangFilter]) => runSparql(diasporaCountryQuery(qid, localCode, natLangFilter), PER_QUERY_TIMEOUT_MS),
-    (idx, [qid, name], data, err) => {
-      done++;
-      bar.style.width = Math.round(100*done/DIASPORA_COUNTRIES.length) + "%";
-      if(err){
-        failed++;
-        markRowError(qid, name, err);
-      }else{
-        const parsed = parseCountryResult(data.results.bindings[0] || {});
-        fillRow(qid, parsed);
-      }
-      status.textContent = `${done}/${DIASPORA_COUNTRIES.length} countries loaded` + (failed ? `, ${failed} timed out (retry inline)` : "") + "…";
-    }
-  );
-  const secs = ((Date.now() - startedAt)/1000).toFixed(1);
-  status.textContent = `Done in ${secs}s — ${DIASPORA_COUNTRIES.length - failed}/${DIASPORA_COUNTRIES.length} countries loaded` + (failed ? `, ${failed} need a retry.` : ".");
-  recomputeLedger();
-  startLiveClock(Date.now());
-  btn.disabled = false;
-  overviewRunning = false;
-}
-async function refreshFailedOnly(){
-  const failedQids = Array.from(rowState.entries())
-    .filter(([qid, state]) => state.tr.classList.contains("error"))
-    .map(([qid]) => qid);
-  if(!failedQids.length) return;
-  const status = document.getElementById("overviewStatus");
-  status.textContent = `Auto-refresh: retrying ${failedQids.length} timed-out countr${failedQids.length===1?"y":"ies"}…`;
-  await runPool(failedQids, POOL_SIZE,
-    (qid) => { const meta = DIASPORA_COUNTRIES.find(c => c[0] === qid); return retryOne(qid, meta[1]); },
-    () => {}
-  );
-  recomputeLedger();
-  startLiveClock(Date.now());
-  const stillFailed = failedQids.filter(qid => rowState.get(qid).tr.classList.contains("error")).length;
-  status.textContent = stillFailed
-    ? `Auto-refresh: retried ${failedQids.length}, ${stillFailed} still timing out.`
-    : `Auto-refresh: all countries now loaded.`;
-}
-document.getElementById("loadOverview").addEventListener("click", loadOverview);
-document.getElementById("autoToggle").addEventListener("click", function(){
-  autoRefreshOn = !autoRefreshOn;
-  this.textContent = "Auto-refresh: " + (autoRefreshOn ? "on" : "off");
-  if(autoRefreshOn){ refreshInterval = setInterval(refreshFailedOnly, AUTO_REFRESH_MS); }
-  else{ clearInterval(refreshInterval); }
-});
-// ---------- gap explorer (six cards, scoped to the 5 receiving countries) ----------
-function gapQuery(qid, langs, natLangFilter){
-  const wikis = langs.map(c => `<https://${c}.wikipedia.org/>`).join(" ");
-  return `
-    SELECT DISTINCT ?person ?personLabel ?natLabel ?gender
-    WHERE {
-      hint:Query hint:optimizer "None".
-      ${residencyPattern(qid)}
-      ${nationalityPattern(natLangFilter)}
-      ${OCC_PATTERN}
-      OPTIONAL { ?person wdt:P21 ?gender. }
-      MINUS {
-        ?w schema:about ?person; schema:isPartOf ?wiki.
-        VALUES ?wiki { ${wikis} }
-      }
-      SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
-    }
-    LIMIT 4000
-  `;
-}
-function dedupeGapRows(rows){
-  const byPerson = new Map();
-  rows.forEach(r => {
-    const id = r.person.value;
-    const existing = byPerson.get(id) || {
-      person: r.person, personLabel: r.personLabel, natLabel: r.natLabel,
-      isMale: false, isFemale: false
-    };
-    if(r.gender && r.gender.value === MALE) existing.isMale = true;
-    if(r.gender && r.gender.value === FEMALE) existing.isFemale = true;
-    byPerson.set(id, existing);
-  });
-  return Array.from(byPerson.values());
-}
+// ---------- gap explorer (six cards, reading precomputed lists) ----------
 function gapGenderTag(p){
   if(p.isMale && p.isFemale) return {cls:"other", label:"Man &amp; woman"};
   if(p.isMale) return {cls:"men", label:"Man"};
@@ -581,24 +348,24 @@ function gapGenderTag(p){
 }
 const GAP_CARDS = [
   { id:"all",   title:"All checked languages",  badge:"ALL", accent:"#1b2a4a",
-    sub:"No article anywhere — EN, FR, AR, PT, and the receiving country's language", mode:"all" },
+    sub:"No article anywhere — EN, FR, AR, PT, and the receiving country's language", key:"all" },
   { id:"en",    title:"English",                badge:"EN",  accent:"#2c5c8a",
-    sub:"Missing an English Wikipedia article", mode:"single", lang:"en" },
+    sub:"Missing an English Wikipedia article", key:"en" },
   { id:"fr",    title:"French",                 badge:"FR",  accent:"#8e6423",
-    sub:"Missing a French Wikipedia article", mode:"single", lang:"fr" },
+    sub:"Missing a French Wikipedia article", key:"fr" },
   { id:"ar",    title:"Arabic",                 badge:"AR",  accent:"#3f7d6b",
-    sub:"Missing an Arabic Wikipedia article", mode:"single", lang:"ar" },
+    sub:"Missing an Arabic Wikipedia article", key:"ar" },
   { id:"pt",    title:"Portuguese",              badge:"PT",  accent:"#9c4f6e",
-    sub:"Missing a Portuguese Wikipedia article", mode:"single", lang:"pt" },
+    sub:"Missing a Portuguese Wikipedia article", key:"pt" },
   { id:"local", title:"Receiving country's language", badge:"LOC", accent:"#6b4fa0",
-    sub:"Missing the article in the country's own language (e.g. German for Germany)", mode:"local" }
+    sub:"Missing the article in the country's own language (e.g. German for Germany)", key:"local" }
 ];
 function buildGapCards(){
   const grid = document.getElementById("gapGrid");
   grid.innerHTML = "";
   GAP_CARDS.forEach(card => {
     const options = DIASPORA_COUNTRIES.map(([qid, name, local]) =>
-      el("option", {value: qid}, card.mode === "local" ? `${name} (${LANG_NAMES[local] || local})` : name)
+      el("option", {value: qid}, card.key === "local" ? `${name} (${LANG_NAMES[local] || local})` : name)
     );
     const placeholder = el("option", {value: "", selected: "selected", disabled: "disabled"}, "Select a country…");
     const select = el("select", {}, placeholder, ...options);
@@ -608,7 +375,7 @@ function buildGapCards(){
     select.addEventListener("change", () => { runBtn.disabled = !select.value; });
     runBtn.addEventListener("click", () => {
       if(!select.value) return;
-      runGapCard(card, select.value, status, results, runBtn);
+      renderGapCard(card, select.value, status, results);
     });
     grid.appendChild(el("div", {class:"gapcard", style:`--card-accent:${card.accent}`},
       el("div", {class:"gc-head"}, el("h3", {}, card.title), el("span", {class:"gc-badge"}, card.badge)),
@@ -620,48 +387,38 @@ function buildGapCards(){
     ));
   });
 }
-async function runGapCard(card, qid, status, results, btn){
+function renderGapCard(card, qid, status, results){
   const meta = DIASPORA_COUNTRIES.find(c => c[0] === qid);
-  btn.disabled = true;
-  status.textContent = `Querying ${meta[1]}…`;
+  const countryGaps = DIASPORA_DATA.gaps && DIASPORA_DATA.gaps[qid];
   results.innerHTML = "";
-  try{
-    const langs = card.mode === "all" ? buildLangSet(meta[2])
-                : card.mode === "local" ? [meta[2]]
-                : [card.lang];
-    const data = await runSparql(gapQuery(qid, langs, meta[3]), PER_QUERY_TIMEOUT_MS);
-    const people = dedupeGapRows(data.results.bindings);
-    status.textContent = `${fmt(people.length)} item${people.length===1?"":"s"} — ${meta[1]}.`;
-    if(!people.length){
-      results.appendChild(el("div", {class:"empty"}, "No gap — everyone already has coverage here."));
-    }else{
-      results.appendChild(el("div", {class:"gc-count"}, fmt(people.length), el("span",{class:"gc-count-lab"},"missing")));
-      const list = el("ul", {class:"gc-list"});
-      people.forEach(p => {
-        const personQid = p.person.value.split("/").pop();
-        const name = p.personLabel ? p.personLabel.value : personQid;
-        const g = gapGenderTag(p);
-        const genderTagEl = el("span", {class:"tag " + g.cls});
-        genderTagEl.innerHTML = g.label;
-        const tags = el("span", {class:"gc-tags"});
-        if(p.natLabel) tags.appendChild(el("span", {class:"tag nat"}, p.natLabel.value));
-        tags.appendChild(genderTagEl);
-        list.appendChild(el("li", {},
-          el("a", {href: p.person.value, target:"_blank", rel:"noopener"}, name),
-          tags
-        ));
-      });
-      results.appendChild(list);
-    }
-  }catch(e){
-    status.textContent = "Query failed: " + e.message + " — try again.";
-  }finally{
-    btn.disabled = false;
+  if(!countryGaps){
+    status.textContent = `No precomputed data for ${meta[1]} — re-run precompute-diaspora.mjs.`;
+    return;
+  }
+  const people = countryGaps[card.key] || [];
+  status.textContent = `${fmt(people.length)} item${people.length===1?"":"s"} — ${meta[1]}.`;
+  if(!people.length){
+    results.appendChild(el("div", {class:"empty"}, "No gap — everyone already has coverage here."));
+  }else{
+    results.appendChild(el("div", {class:"gc-count"}, fmt(people.length), el("span",{class:"gc-count-lab"},"missing")));
+    const list = el("ul", {class:"gc-list"});
+    people.forEach(p => {
+      const g = gapGenderTag(p);
+      const genderTagEl = el("span", {class:"tag " + g.cls});
+      genderTagEl.innerHTML = g.label;
+      const tags = el("span", {class:"gc-tags"});
+      if(p.natLabel) tags.appendChild(el("span", {class:"tag nat"}, p.natLabel));
+      tags.appendChild(genderTagEl);
+      list.appendChild(el("li", {},
+        el("a", {href: "https://www.wikidata.org/wiki/" + p.qid, target:"_blank", rel:"noopener"}, p.label || p.qid),
+        tags
+      ));
+    });
+    results.appendChild(list);
   }
 }
-buildGapCards();
 // ---------- boot ----------
-loadOverview();
+loadData();
 </script>
 </body>
 </html>
