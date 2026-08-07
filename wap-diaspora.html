@@ -339,6 +339,7 @@ function diasporaCountryQuery(qid, localCode){
              (MAX(IF(?g = <${MALE}>, 1, 0)) AS ?isMale)
              (MAX(IF(?g = <${FEMALE}>, 1, 0)) AS ?isFemale)
       WHERE {
+        hint:Query hint:optimizer "None".
         ${residencyPattern(qid)}
         VALUES ?nat { ${AFRICAN_NAT_VALUES} }
         ?person wdt:P27 ?nat.
@@ -526,6 +527,7 @@ function gapQuery(qid, langs){
   return `
     SELECT DISTINCT ?person ?personLabel ?natLabel ?gender
     WHERE {
+      hint:Query hint:optimizer "None".
       ${residencyPattern(qid)}
       VALUES ?nat { ${AFRICAN_NAT_VALUES} }
       ?person wdt:P27 ?nat.
