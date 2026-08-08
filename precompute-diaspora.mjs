@@ -27,7 +27,7 @@ const ENDPOINT = "https://query.wikidata.org/sparql";
 // WDQS is a shared public resource — be a polite client. These are
 // generous per-query timeouts (the batch job isn't time-pressured)
 // and a pause between requests so we don't hammer the endpoint.
-const QUERY_TIMEOUT_MS = 90_000;
+const QUERY_TIMEOUT_MS = 60_000;
 const PAUSE_BETWEEN_QUERIES_MS = 1_200;
 const MAX_RETRIES = 2;
 
@@ -174,6 +174,7 @@ async function fetchCountryPeople(qid, name, localCode) {
   const langs = buildLangSet(localCode);
   const signals = ["P551", "P937", "P108"];
   const byPerson = new Map();
+  const failedPieces = [];
 
   function absorb(rows) {
     if (!rows) return;
@@ -206,7 +207,10 @@ async function fetchCountryPeople(qid, name, localCode) {
       const label = `${name} / ${signal}`;
       console.log(`  fetching ${label}…`);
       const rows = await runSparql(personQuery(qid, signal, langs), label);
-      if (!rows) console.warn(`  [warn] skipping ${label} — no data for this signal this run.`);
+      if (!rows) {
+        console.warn(`  [warn] skipping ${label} — no data for this signal this run.`);
+        failedPieces.push(signal);
+      }
       absorb(rows);
       continue;
     }
@@ -215,11 +219,14 @@ async function fetchCountryPeople(qid, name, localCode) {
       const label = `${name} / ${signal} (batch ${i + 1}/${batches.length})`;
       console.log(`  fetching ${label}…`);
       const rows = await runSparql(personQuery(qid, signal, langs, batches[i]), label);
-      if (!rows) console.warn(`  [warn] skipping ${label} — no data for this batch this run.`);
+      if (!rows) {
+        console.warn(`  [warn] skipping ${label} — no data for this batch this run.`);
+        failedPieces.push(`${signal} batch ${i + 1}/${batches.length}`);
+      }
       absorb(rows);
     }
   }
-  return { langs, people: Array.from(byPerson.values()) };
+  return { langs, people: Array.from(byPerson.values()), failedPieces };
 }
 
 // ---------- step 3: derive overview stats + gap-explorer lists in JS ----------
@@ -263,17 +270,26 @@ async function main() {
   const overview = {};
   const gaps = {};
   const failedCountries = [];
+  let anyPartial = false;
 
   for (const [qid, name, localCode] of DIASPORA_COUNTRIES) {
     console.log(`Country: ${name}`);
-    const { langs, people } = await fetchCountryPeople(qid, name, localCode);
+    const { langs, people, failedPieces } = await fetchCountryPeople(qid, name, localCode);
     if (!people.length) {
       console.warn(`  [warn] no data collected for ${name} — check warnings above.`);
       failedCountries.push(name);
     }
     const { overview: ov, gaps: gp } = summarize(qid, name, localCode, langs, people);
+    ov.incomplete = failedPieces.length > 0;
+    ov.missingPieces = failedPieces;
     overview[qid] = ov;
     gaps[qid] = gp;
+    if (failedPieces.length) {
+      anyPartial = true;
+      console.warn(
+        `  [warn] ${name}'s total is likely an UNDERCOUNT — ${failedPieces.length} piece(s) failed and were skipped: ${failedPieces.join(", ")}`
+      );
+    }
     console.log(`  -> ${ov.total} people, ${ov.covered} covered.\n`);
   }
 
@@ -288,10 +304,16 @@ async function main() {
   console.log(`Done. Wrote ${OUT_PATH}`);
   if (failedCountries.length) {
     console.warn(
-      `Note: ${failedCountries.join(", ")} came back empty this run — re-run the script, WDQS may have been under load.`
+      `Note: ${failedCountries.join(", ")} came back completely empty this run — re-run the script, WDQS may have been under load.`
+    );
+  }
+  if (anyPartial) {
+    console.warn(
+      `Note: some countries above have "incomplete": true in the JSON — their totals are undercounts from skipped pieces, not necessarily the real number. Re-running usually recovers them.`
     );
   }
 }
+
 
 main().catch((err) => {
   console.error("Fatal error:", err);
