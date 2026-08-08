@@ -119,7 +119,7 @@ function residencyTriple(qid, signal) {
 
 function personQuery(qid, signal, natLangFilter, occValues, langs) {
   const natLangJoin = natLangFilter ? `\n      ?nat wdt:P37 ${natLangFilter}.` : "";
-  const wikiHosts = langs.map((c) => `<https://${c}.wikipedia.org/>`).join(" ");
+  const wikiHosts = langs.map((c) => `<https://${c}.wikipedia.org/>`).join(", ");
   return `
     SELECT ?person ?personLabel ?nat ?natLabel ?gender
            (GROUP_CONCAT(DISTINCT ?site; separator="|") AS ?sites)
@@ -133,7 +133,7 @@ function personQuery(qid, signal, natLangFilter, occValues, langs) {
       OPTIONAL {
         ?w schema:about ?person; schema:isPartOf ?wiki.
         FILTER(?wiki IN (${wikiHosts}))
-        BIND(REPLACE(STR(?wiki), "^https://([a-z]+)\\\\.wikipedia\\\\.org/$", "$1") AS ?site)
+        BIND(REPLACE(STR(?wiki), "^https://([a-z]+)\\.wikipedia\\.org/$", "$1") AS ?site)
       }
       SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
     }
