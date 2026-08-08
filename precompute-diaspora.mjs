@@ -62,6 +62,22 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+function extractErrorDetail(bodyText) {
+  // Blazegraph's parser errors always contain "Encountered ... at line X,
+  // column Y. Was expecting one of: ..." — the actual human-readable
+  // reason. The response body has no real line breaks, so we can't just
+  // grab "the rest of the line" — we search for known markers directly
+  // and take a fixed window from there.
+  const markers = ["Encountered", "MalformedQueryException", "QueryParseException", "ParseException"];
+  for (const marker of markers) {
+    const idx = bodyText.indexOf(marker);
+    if (idx >= 0) {
+      return bodyText.slice(idx, idx + 350).replace(/\s+/g, " ").trim();
+    }
+  }
+  return bodyText.slice(0, 200).replace(/\s+/g, " ").trim();
+}
+
 async function runSparql(query, label) {
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     const controller = new AbortController();
@@ -83,8 +99,8 @@ async function runSparql(query, label) {
       clearTimeout(t);
       if (!resp.ok) {
         const bodyText = await resp.text().catch(() => "");
-        const tail = bodyText.slice(-500).replace(/\s+/g, " ").trim();
-        throw new Error(`HTTP ${resp.status}${tail ? " — …" + tail : ""}`);
+        const detail = extractErrorDetail(bodyText);
+        throw new Error(`HTTP ${resp.status}${detail ? " — " + detail : ""}`);
       }
       const data = await resp.json();
       return data.results.bindings;
