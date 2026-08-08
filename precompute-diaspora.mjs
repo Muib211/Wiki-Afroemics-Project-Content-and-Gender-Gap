@@ -149,7 +149,7 @@ function personQuery(qid, signal, natLangFilter, langs) {
           OPTIONAL {
             ?w schema:about ?person; schema:isPartOf ?wiki.
             FILTER(?wiki IN (${wikiHosts}))
-            BIND(REPLACE(STR(?wiki), "^https://([a-z]+)\\.wikipedia\\.org/$", "$1") AS ?site)
+            BIND(REPLACE(STR(?wiki), "^https://([a-z]+).wikipedia.org/$", "$1") AS ?site)
           }
         }
         GROUP BY ?person ?nat ?gender
