@@ -33,19 +33,18 @@ const MAX_RETRIES = 2;
 
 const MALE = "http://www.wikidata.org/entity/Q6581097";
 const FEMALE = "http://www.wikidata.org/entity/Q6581072";
-const LANG_ENGLISH = "wd:Q1860";
-const LANG_FRENCH = "wd:Q150";
 const OCC_ROOTS = ["wd:Q901", "wd:Q1650915", "wd:Q3400985", "wd:Q1622272"];
 const CORE_LANGS = ["en", "fr", "ar", "pt"];
 
-// Same 5 receiving countries and per-country official-language filter
-// as the live page used. null natLangFilter = no restriction (Germany).
+// The five receiving countries this page tracks, with each one's own primary
+// Wikipedia language. No anglophone/francophone nationality restriction —
+// every country checks all 54 African nationalities.
 const DIASPORA_COUNTRIES = [
-  ["Q145", "United Kingdom", "en", LANG_ENGLISH],
-  ["Q30", "United States", "en", LANG_ENGLISH],
-  ["Q16", "Canada", "en", LANG_ENGLISH],
-  ["Q183", "Germany", "de", null],
-  ["Q142", "France", "fr", LANG_FRENCH],
+  ["Q145", "United Kingdom", "en"],
+  ["Q30", "United States", "en"],
+  ["Q16", "Canada", "en"],
+  ["Q183", "Germany", "de"],
+  ["Q142", "France", "fr"],
 ];
 
 // The same 54 African country QIDs the live page used.
@@ -58,11 +57,10 @@ function chunkArray(arr, size) {
   return chunks;
 }
 const AFRICAN_NAT_LIST = AFRICAN_NAT_VALUES.split(" ");
-// Batch size for the nationality-vs-employer query. Only used for the P108
-// signal when there's no P37 language filter to narrow the candidate set
-// first (i.e. Germany) — that combination is the one that reliably times
-// out as a single 54-country query, so it's split into smaller pieces and
-// merged in JS instead.
+// Batch size for the nationality-vs-employer query. All five countries now
+// check the full 54-country nationality list with no narrowing filter, so
+// the P108 (employer) signal — which reliably timed out as one big query —
+// is always split into smaller batches and merged in JS.
 const NAT_BATCH_SIZE = 9;
 
 function buildLangSet(localCode) {
@@ -142,8 +140,7 @@ function residencyTriple(qid, signal) {
   return `?person wdt:P108 ?employer.\n      ?employer wdt:P17 wd:${qid}.`;
 }
 
-function personQuery(qid, signal, natLangFilter, langs, natValuesList) {
-  const natLangJoin = natLangFilter ? `\n        ?nat wdt:P37 ${natLangFilter}.` : "";
+function personQuery(qid, signal, langs, natValuesList) {
   const wikiHosts = langs.map((c) => `<https://${c}.wikipedia.org/>`).join(", ");
   const natValues = (natValuesList || AFRICAN_NAT_LIST).join(" ");
   return `
@@ -155,10 +152,10 @@ function personQuery(qid, signal, natLangFilter, langs, natValuesList) {
         WHERE {
           ${residencyTriple(qid, signal)}
           VALUES ?nat { ${natValues} }
-          ?person wdt:P27 ?nat.${natLangJoin}
-          ?person wdt:P106 ?occ0.
-          ?occ0 wdt:P279* ?occRoot.
-          FILTER(?occRoot IN (${OCC_ROOTS.join(", ")}))
+          ?person wdt:P27 ?nat.
+          ?person p:P106 ?statement0.
+          ?statement0 (ps:P106/(wdt:P279*)) ?occ.
+          FILTER(?occ IN (${OCC_ROOTS.join(", ")}))
           OPTIONAL { ?person wdt:P21 ?gender. }
           OPTIONAL {
             ?w schema:about ?person; schema:isPartOf ?wiki.
@@ -173,7 +170,7 @@ function personQuery(qid, signal, natLangFilter, langs, natValuesList) {
   `;
 }
 
-async function fetchCountryPeople(qid, name, localCode, natLangFilter) {
+async function fetchCountryPeople(qid, name, localCode) {
   const langs = buildLangSet(localCode);
   const signals = ["P551", "P937", "P108"];
   const byPerson = new Map();
@@ -200,15 +197,15 @@ async function fetchCountryPeople(qid, name, localCode, natLangFilter) {
   }
 
   for (const signal of signals) {
-    // P108 with no language narrowing (Germany) is the one combination that
-    // reliably times out as a single query — split it into smaller
-    // nationality batches instead, and merge. Every other signal/country
-    // combination runs as one query, as before.
-    const needsBatching = signal === "P108" && !natLangFilter;
+    // P108 (employer) is the one signal that reliably times out as a
+    // single 54-country query — always split into smaller nationality
+    // batches and merge. P551/P937 have proven fine as single queries
+    // even against the full 54-country list, so they stay as-is.
+    const needsBatching = signal === "P108";
     if (!needsBatching) {
       const label = `${name} / ${signal}`;
       console.log(`  fetching ${label}…`);
-      const rows = await runSparql(personQuery(qid, signal, natLangFilter, langs), label);
+      const rows = await runSparql(personQuery(qid, signal, langs), label);
       if (!rows) console.warn(`  [warn] skipping ${label} — no data for this signal this run.`);
       absorb(rows);
       continue;
@@ -217,7 +214,7 @@ async function fetchCountryPeople(qid, name, localCode, natLangFilter) {
     for (let i = 0; i < batches.length; i++) {
       const label = `${name} / ${signal} (batch ${i + 1}/${batches.length})`;
       console.log(`  fetching ${label}…`);
-      const rows = await runSparql(personQuery(qid, signal, natLangFilter, langs, batches[i]), label);
+      const rows = await runSparql(personQuery(qid, signal, langs, batches[i]), label);
       if (!rows) console.warn(`  [warn] skipping ${label} — no data for this batch this run.`);
       absorb(rows);
     }
@@ -267,9 +264,9 @@ async function main() {
   const gaps = {};
   const failedCountries = [];
 
-  for (const [qid, name, localCode, natLangFilter] of DIASPORA_COUNTRIES) {
+  for (const [qid, name, localCode] of DIASPORA_COUNTRIES) {
     console.log(`Country: ${name}`);
-    const { langs, people } = await fetchCountryPeople(qid, name, localCode, natLangFilter);
+    const { langs, people } = await fetchCountryPeople(qid, name, localCode);
     if (!people.length) {
       console.warn(`  [warn] no data collected for ${name} — check warnings above.`);
       failedCountries.push(name);
