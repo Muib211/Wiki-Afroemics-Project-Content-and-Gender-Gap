@@ -191,14 +191,13 @@
     <h2>Diaspora overview</h2>
     <div class="hint">African academics &amp; scientists per receiving country, Wikipedia coverage, and the gender split.</div>
     <div class="fix-note">
-      <b>Who counts:</b> a person's citizenship (<code>P27</code>) must be one of the 54 African countries — narrowed
-      further, per receiving country, to nationalities whose official language (<code>P37</code>) matches: only
-      anglophone African countries are checked for the UK, US, and Canada; only francophone African countries are
-      checked for France; Germany still checks all 54. Their occupation must also match scientist / researcher /
-      academic / university teacher or a subclass of one, <em>and</em> Wikidata must record a tie to the receiving
-      country — residence (<code>P551</code>), work location (<code>P937</code>), or an employer (<code>P108</code>)
-      based there. Someone with none of those three signals recorded won't show up here even if they are, in fact,
-      living abroad — this reflects Wikidata's coverage, not the full reality.
+      <b>Who counts:</b> a person's citizenship (<code>P27</code>) must be one of the 54 African countries — no
+      further nationality narrowing; every receiving country checks all 54. Their occupation must also match
+      scientist / researcher / academic / university teacher or a subclass of one, <em>and</em> Wikidata must
+      record a tie to the receiving country — residence (<code>P551</code>), work location (<code>P937</code>),
+      or an employer (<code>P108</code>) based there. Someone with none of those three signals recorded won't
+      show up here even if they are, in fact, living abroad — this reflects Wikidata's coverage, not the full
+      reality.
       <br><br>
       <b>Language coverage:</b> same as the main tracker — English, French, Arabic, and Portuguese are checked for
       every country, plus each receiving country's own language on top (German, for Germany).
@@ -223,8 +222,7 @@
     </svg>
     <div>Data: Wikidata Query Service, precomputed offline on a schedule (not queried live in your browser) and
     served as a static file. Nationality via <code>P27</code> against the same 54
-    African countries as the main tracker, restricted per receiving country by official language
-    (<code>P37</code>): anglophone Africa for the UK/US/Canada, francophone Africa for France, all 54 for Germany;
+    African countries as the main tracker, no further narrowing — every receiving country checks all 54;
     occupation match: scientist, academic/university teacher, or researcher
     (<code>P106</code>), including any subclass of one; diaspora residency via
     <code>P551</code> (residence), <code>P937</code> (work location), or <code>P108</code>→<code>P17</code>
