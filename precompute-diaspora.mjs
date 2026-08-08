@@ -83,7 +83,8 @@ async function runSparql(query, label) {
       clearTimeout(t);
       if (!resp.ok) {
         const bodyText = await resp.text().catch(() => "");
-        throw new Error(`HTTP ${resp.status}${bodyText ? " — " + bodyText.slice(0, 300).replace(/\s+/g, " ") : ""}`);
+        const tail = bodyText.slice(-500).replace(/\s+/g, " ").trim();
+        throw new Error(`HTTP ${resp.status}${tail ? " — …" + tail : ""}`);
       }
       const data = await resp.json();
       return data.results.bindings;
@@ -113,27 +114,32 @@ function residencyTriple(qid, signal) {
 }
 
 function personQuery(qid, signal, natLangFilter, langs) {
-  const natLangJoin = natLangFilter ? `\n      ?nat wdt:P37 ${natLangFilter}.` : "";
+  const natLangJoin = natLangFilter ? `\n        ?nat wdt:P37 ${natLangFilter}.` : "";
   const wikiHosts = langs.map((c) => `<https://${c}.wikipedia.org/>`).join(", ");
   return `
-    SELECT ?person ?personLabel ?nat ?natLabel ?gender
-           (GROUP_CONCAT(DISTINCT ?site; separator="|") AS ?sites)
+    SELECT ?person ?personLabel ?nat ?natLabel ?gender ?sites
     WHERE {
-      ${residencyTriple(qid, signal)}
-      VALUES ?nat { ${AFRICAN_NAT_VALUES} }
-      ?person wdt:P27 ?nat.${natLangJoin}
-      ?person wdt:P106 ?occ0.
-      ?occ0 wdt:P279* ?occRoot.
-      FILTER(?occRoot IN (${OCC_ROOTS.join(", ")}))
-      OPTIONAL { ?person wdt:P21 ?gender. }
-      OPTIONAL {
-        ?w schema:about ?person; schema:isPartOf ?wiki.
-        FILTER(?wiki IN (${wikiHosts}))
-        BIND(REPLACE(STR(?wiki), "^https://([a-z]+)\\.wikipedia\\.org/$", "$1") AS ?site)
+      {
+        SELECT ?person ?nat ?gender
+               (GROUP_CONCAT(DISTINCT ?site; separator="|") AS ?sites)
+        WHERE {
+          ${residencyTriple(qid, signal)}
+          VALUES ?nat { ${AFRICAN_NAT_VALUES} }
+          ?person wdt:P27 ?nat.${natLangJoin}
+          ?person wdt:P106 ?occ0.
+          ?occ0 wdt:P279* ?occRoot.
+          FILTER(?occRoot IN (${OCC_ROOTS.join(", ")}))
+          OPTIONAL { ?person wdt:P21 ?gender. }
+          OPTIONAL {
+            ?w schema:about ?person; schema:isPartOf ?wiki.
+            FILTER(?wiki IN (${wikiHosts}))
+            BIND(REPLACE(STR(?wiki), "^https://([a-z]+)\\.wikipedia\\.org/$", "$1") AS ?site)
+          }
+        }
+        GROUP BY ?person ?nat ?gender
       }
       SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
     }
-    GROUP BY ?person ?personLabel ?nat ?natLabel ?gender
   `;
 }
 
