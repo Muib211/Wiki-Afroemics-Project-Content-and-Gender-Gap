@@ -81,7 +81,10 @@ async function runSparql(query, label) {
         signal: controller.signal,
       });
       clearTimeout(t);
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      if (!resp.ok) {
+        const bodyText = await resp.text().catch(() => "");
+        throw new Error(`HTTP ${resp.status}${bodyText ? " — " + bodyText.slice(0, 300).replace(/\s+/g, " ") : ""}`);
+      }
       const data = await resp.json();
       return data.results.bindings;
     } catch (err) {
@@ -100,20 +103,7 @@ async function runSparql(query, label) {
   return null;
 }
 
-// ---------- step 1: flatten the occupation subclass tree ONCE ----------
-async function fetchOccupationList() {
-  const query = `
-    SELECT DISTINCT ?occ WHERE {
-      VALUES ?root { ${OCC_ROOTS.join(" ")} }
-      ?occ wdt:P279* ?root.
-    }
-  `;
-  const rows = await runSparql(query, "occupation subclass list");
-  if (!rows) throw new Error("Could not fetch the occupation subclass list — cannot continue.");
-  return rows.map((r) => "wd:" + r.occ.value.split("/").pop());
-}
-
-// ---------- step 2: one residency-signal query, per country ----------
+// ---------- step 1: one residency-signal query, per country ----------
 function residencyTriple(qid, signal) {
   if (signal === "P551") return `?person wdt:P551 wd:${qid}.`;
   if (signal === "P937") return `?person wdt:P937 wd:${qid}.`;
@@ -122,7 +112,7 @@ function residencyTriple(qid, signal) {
   return `?person wdt:P108 ?employer.\n      ?employer wdt:P17 wd:${qid}.`;
 }
 
-function personQuery(qid, signal, natLangFilter, occValues, langs) {
+function personQuery(qid, signal, natLangFilter, langs) {
   const natLangJoin = natLangFilter ? `\n      ?nat wdt:P37 ${natLangFilter}.` : "";
   const wikiHosts = langs.map((c) => `<https://${c}.wikipedia.org/>`).join(", ");
   return `
@@ -132,8 +122,9 @@ function personQuery(qid, signal, natLangFilter, occValues, langs) {
       ${residencyTriple(qid, signal)}
       VALUES ?nat { ${AFRICAN_NAT_VALUES} }
       ?person wdt:P27 ?nat.${natLangJoin}
-      VALUES ?occ { ${occValues.join(" ")} }
-      ?person wdt:P106 ?occ.
+      ?person wdt:P106 ?occ0.
+      ?occ0 wdt:P279* ?occRoot.
+      FILTER(?occRoot IN (${OCC_ROOTS.join(", ")}))
       OPTIONAL { ?person wdt:P21 ?gender. }
       OPTIONAL {
         ?w schema:about ?person; schema:isPartOf ?wiki.
@@ -146,14 +137,14 @@ function personQuery(qid, signal, natLangFilter, occValues, langs) {
   `;
 }
 
-async function fetchCountryPeople(qid, name, localCode, natLangFilter, occValues) {
+async function fetchCountryPeople(qid, name, localCode, natLangFilter) {
   const langs = buildLangSet(localCode);
   const signals = ["P551", "P937", "P108"];
   const byPerson = new Map();
   for (const signal of signals) {
     const label = `${name} / ${signal}`;
     console.log(`  fetching ${label}…`);
-    const rows = await runSparql(personQuery(qid, signal, natLangFilter, occValues, langs), label);
+    const rows = await runSparql(personQuery(qid, signal, natLangFilter, langs), label);
     if (!rows) {
       console.warn(`  [warn] skipping ${label} — no data for this signal this run.`);
       continue;
@@ -217,17 +208,13 @@ function summarize(qid, name, localCode, langs, people) {
 
 // ---------- main ----------
 async function main() {
-  console.log("Fetching flattened occupation subclass list…");
-  const occValues = await fetchOccupationList();
-  console.log(`  got ${occValues.length} occupation QIDs.\n`);
-
   const overview = {};
   const gaps = {};
   const failedCountries = [];
 
   for (const [qid, name, localCode, natLangFilter] of DIASPORA_COUNTRIES) {
     console.log(`Country: ${name}`);
-    const { langs, people } = await fetchCountryPeople(qid, name, localCode, natLangFilter, occValues);
+    const { langs, people } = await fetchCountryPeople(qid, name, localCode, natLangFilter);
     if (!people.length) {
       console.warn(`  [warn] no data collected for ${name} — check warnings above.`);
       failedCountries.push(name);
