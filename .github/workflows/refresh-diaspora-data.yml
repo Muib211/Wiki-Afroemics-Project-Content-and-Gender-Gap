@@ -1,0 +1,34 @@
+name: Refresh WAP Diaspora data
+
+on:
+  schedule:
+    # Runs once a day at 03:00 UTC. Change the cron expression to adjust
+    # frequency — e.g. "0 3 * * 1" for weekly (Mondays).
+    - cron: "0 3 * * *"
+  workflow_dispatch: {}  # lets you trigger it manually from the Actions tab too
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run precompute script
+        run: node precompute-diaspora.mjs
+        # Adjust the path above if you keep the script in a subfolder,
+        # e.g. scripts/precompute-diaspora.mjs
+
+      - name: Commit updated data file if it changed
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Auto-refresh WAP Diaspora data"
+          file_pattern: diaspora-data.json
