@@ -52,6 +52,19 @@ const DIASPORA_COUNTRIES = [
 const AFRICAN_NAT_VALUES =
   "wd:Q262 wd:Q916 wd:Q962 wd:Q963 wd:Q965 wd:Q967 wd:Q1011 wd:Q1009 wd:Q929 wd:Q657 wd:Q970 wd:Q971 wd:Q974 wd:Q977 wd:Q79 wd:Q983 wd:Q986 wd:Q1050 wd:Q115 wd:Q1000 wd:Q1005 wd:Q117 wd:Q1006 wd:Q1007 wd:Q1008 wd:Q114 wd:Q1013 wd:Q1014 wd:Q1016 wd:Q1019 wd:Q1020 wd:Q912 wd:Q1025 wd:Q1027 wd:Q1028 wd:Q1029 wd:Q1030 wd:Q1032 wd:Q1033 wd:Q1037 wd:Q1039 wd:Q1041 wd:Q1042 wd:Q1044 wd:Q1045 wd:Q258 wd:Q958 wd:Q1049 wd:Q924 wd:Q945 wd:Q948 wd:Q1036 wd:Q953 wd:Q954";
 
+function chunkArray(arr, size) {
+  const chunks = [];
+  for (let i = 0; i < arr.length; i += size) chunks.push(arr.slice(i, i + size));
+  return chunks;
+}
+const AFRICAN_NAT_LIST = AFRICAN_NAT_VALUES.split(" ");
+// Batch size for the nationality-vs-employer query. Only used for the P108
+// signal when there's no P37 language filter to narrow the candidate set
+// first (i.e. Germany) — that combination is the one that reliably times
+// out as a single 54-country query, so it's split into smaller pieces and
+// merged in JS instead.
+const NAT_BATCH_SIZE = 9;
+
 function buildLangSet(localCode) {
   const codes = [...CORE_LANGS];
   if (localCode && !codes.includes(localCode)) codes.push(localCode);
@@ -129,9 +142,10 @@ function residencyTriple(qid, signal) {
   return `?person wdt:P108 ?employer.\n      ?employer wdt:P17 wd:${qid}.`;
 }
 
-function personQuery(qid, signal, natLangFilter, langs) {
+function personQuery(qid, signal, natLangFilter, langs, natValuesList) {
   const natLangJoin = natLangFilter ? `\n        ?nat wdt:P37 ${natLangFilter}.` : "";
   const wikiHosts = langs.map((c) => `<https://${c}.wikipedia.org/>`).join(", ");
+  const natValues = (natValuesList || AFRICAN_NAT_LIST).join(" ");
   return `
     SELECT ?person ?personLabel ?nat ?natLabel ?gender ?sites
     WHERE {
@@ -140,7 +154,7 @@ function personQuery(qid, signal, natLangFilter, langs) {
                (GROUP_CONCAT(DISTINCT ?site; separator="|") AS ?sites)
         WHERE {
           ${residencyTriple(qid, signal)}
-          VALUES ?nat { ${AFRICAN_NAT_VALUES} }
+          VALUES ?nat { ${natValues} }
           ?person wdt:P27 ?nat.${natLangJoin}
           ?person wdt:P106 ?occ0.
           ?occ0 wdt:P279* ?occRoot.
@@ -163,14 +177,9 @@ async function fetchCountryPeople(qid, name, localCode, natLangFilter) {
   const langs = buildLangSet(localCode);
   const signals = ["P551", "P937", "P108"];
   const byPerson = new Map();
-  for (const signal of signals) {
-    const label = `${name} / ${signal}`;
-    console.log(`  fetching ${label}…`);
-    const rows = await runSparql(personQuery(qid, signal, natLangFilter, langs), label);
-    if (!rows) {
-      console.warn(`  [warn] skipping ${label} — no data for this signal this run.`);
-      continue;
-    }
+
+  function absorb(rows) {
+    if (!rows) return;
     for (const r of rows) {
       const id = r.person.value.split("/").pop();
       const existing = byPerson.get(id) || {
@@ -187,6 +196,30 @@ async function fetchCountryPeople(qid, name, localCode, natLangFilter) {
         r.sites.value.split("|").filter(Boolean).forEach((s) => existing.sites.add(s));
       }
       byPerson.set(id, existing);
+    }
+  }
+
+  for (const signal of signals) {
+    // P108 with no language narrowing (Germany) is the one combination that
+    // reliably times out as a single query — split it into smaller
+    // nationality batches instead, and merge. Every other signal/country
+    // combination runs as one query, as before.
+    const needsBatching = signal === "P108" && !natLangFilter;
+    if (!needsBatching) {
+      const label = `${name} / ${signal}`;
+      console.log(`  fetching ${label}…`);
+      const rows = await runSparql(personQuery(qid, signal, natLangFilter, langs), label);
+      if (!rows) console.warn(`  [warn] skipping ${label} — no data for this signal this run.`);
+      absorb(rows);
+      continue;
+    }
+    const batches = chunkArray(AFRICAN_NAT_LIST, NAT_BATCH_SIZE);
+    for (let i = 0; i < batches.length; i++) {
+      const label = `${name} / ${signal} (batch ${i + 1}/${batches.length})`;
+      console.log(`  fetching ${label}…`);
+      const rows = await runSparql(personQuery(qid, signal, natLangFilter, langs, batches[i]), label);
+      if (!rows) console.warn(`  [warn] skipping ${label} — no data for this batch this run.`);
+      absorb(rows);
     }
   }
   return { langs, people: Array.from(byPerson.values()) };
