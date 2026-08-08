@@ -279,7 +279,7 @@ async function loadData(){
     if(!resp.ok) throw new Error("HTTP " + resp.status);
     DIASPORA_DATA = await resp.json();
     dot.classList.remove("stale");
-    text.textContent = `data generated ${timeAgo(DIASPORA_DATA.generatedAt)} — re-run precompute-diaspora.mjs to refresh`;
+    text.textContent = `data generated ${timeAgo(DIASPORA_DATA.generatedAt)} — Refreshes every 24 hours;
     if(DIASPORA_DATA.failedCountries && DIASPORA_DATA.failedCountries.length){
       text.textContent += ` (note: ${DIASPORA_DATA.failedCountries.join(", ")} came back empty on that run)`;
     }
