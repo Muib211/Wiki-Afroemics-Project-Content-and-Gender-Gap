@@ -63,16 +63,21 @@ function sleep(ms) {
 }
 
 async function runSparql(query, label) {
-  const url = ENDPOINT + "?query=" + encodeURIComponent(query) + "&format=json";
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), QUERY_TIMEOUT_MS);
     try {
-      const resp = await fetch(url, {
+      // POST with the query in the body, not GET with it in the URL —
+      // the occupation-subclass VALUES list alone can be hundreds of
+      // QIDs, which blows past URL length limits (HTTP 414) as a GET.
+      const resp = await fetch(ENDPOINT, {
+        method: "POST",
         headers: {
           Accept: "application/sparql-results+json",
+          "Content-Type": "application/sparql-query",
           "User-Agent": "WAP-Diaspora-Precompute/1.0 (Wiki AfroDemics Project)",
         },
+        body: query,
         signal: controller.signal,
       });
       clearTimeout(t);
