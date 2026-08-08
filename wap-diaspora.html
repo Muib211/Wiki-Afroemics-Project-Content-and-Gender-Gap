@@ -306,10 +306,18 @@ function renderOverview(){
   table.appendChild(el("thead",{},thead));
   const tbody = el("tbody");
   const totals = {total:0, covered:0, men:0, women:0, other:0};
+  const incompleteNames = [];
   DIASPORA_COUNTRIES.forEach(([qid, name]) => {
     const d = (DIASPORA_DATA.overview && DIASPORA_DATA.overview[qid]) || null;
     const tr = el("tr", {"data-qid": qid});
-    tr.appendChild(el("td", {}, name));
+    if(d && d.incomplete){
+      incompleteNames.push(name);
+      const pieces = (d.missingPieces || []).join(", ");
+      tr.appendChild(el("td", {title:`Undercount — some data failed to load and was skipped: ${pieces}. Re-run precompute-diaspora.mjs to try to recover it.`},
+        name + " ⚠"));
+    }else{
+      tr.appendChild(el("td", {}, name));
+    }
     if(!d){
       tr.classList.add("error");
       ["—","—","—","—","—","—"].forEach(v => tr.appendChild(el("td",{class:"num"}, v)));
@@ -330,6 +338,11 @@ function renderOverview(){
   const out = document.getElementById("overviewTableWrap");
   out.innerHTML = "";
   out.appendChild(table);
+  if(incompleteNames.length){
+    document.getElementById("overviewStatus").textContent =
+      `⚠ ${incompleteNames.join(", ")} ${incompleteNames.length===1?"has":"have"} an undercount this run — some data failed to load and was skipped. Re-run precompute-diaspora.mjs to try to recover it.`;
+    document.getElementById("overviewStatus").classList.add("err");
+  }
   document.getElementById("statPeople").textContent = fmt(totals.total);
   document.getElementById("statCovered").textContent = fmt(totals.covered);
   document.getElementById("statMen").textContent = fmt(totals.men);
