@@ -1,0 +1,94 @@
+{
+  "generatedAt": "2026-08-08T08:55:50.340Z",
+  "failedCountries": [
+    "United Kingdom",
+    "United States",
+    "Canada",
+    "Germany",
+    "France"
+  ],
+  "overview": {
+    "Q145": {
+      "name": "United Kingdom",
+      "total": 0,
+      "covered": 0,
+      "men": 0,
+      "women": 0,
+      "other": 0
+    },
+    "Q30": {
+      "name": "United States",
+      "total": 0,
+      "covered": 0,
+      "men": 0,
+      "women": 0,
+      "other": 0
+    },
+    "Q16": {
+      "name": "Canada",
+      "total": 0,
+      "covered": 0,
+      "men": 0,
+      "women": 0,
+      "other": 0
+    },
+    "Q183": {
+      "name": "Germany",
+      "total": 0,
+      "covered": 0,
+      "men": 0,
+      "women": 0,
+      "other": 0
+    },
+    "Q142": {
+      "name": "France",
+      "total": 0,
+      "covered": 0,
+      "men": 0,
+      "women": 0,
+      "other": 0
+    }
+  },
+  "gaps": {
+    "Q145": {
+      "all": [],
+      "en": [],
+      "fr": [],
+      "ar": [],
+      "pt": [],
+      "local": []
+    },
+    "Q30": {
+      "all": [],
+      "en": [],
+      "fr": [],
+      "ar": [],
+      "pt": [],
+      "local": []
+    },
+    "Q16": {
+      "all": [],
+      "en": [],
+      "fr": [],
+      "ar": [],
+      "pt": [],
+      "local": []
+    },
+    "Q183": {
+      "all": [],
+      "en": [],
+      "fr": [],
+      "ar": [],
+      "pt": [],
+      "local": []
+    },
+    "Q142": {
+      "all": [],
+      "en": [],
+      "fr": [],
+      "ar": [],
+      "pt": [],
+      "local": []
+    }
+  }
+}
