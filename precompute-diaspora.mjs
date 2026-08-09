@@ -28,8 +28,12 @@ const ENDPOINT = "https://query.wikidata.org/sparql";
 // generous per-query timeouts (the batch job isn't time-pressured)
 // and a pause between requests so we don't hammer the endpoint.
 const QUERY_TIMEOUT_MS = 60_000;
-const PAUSE_BETWEEN_QUERIES_MS = 1_200;
+const PAUSE_BETWEEN_QUERIES_MS = 2_500;
 const MAX_RETRIES = 2;
+// After finishing every country once, if anything failed, wait this long
+// (letting whatever caused a burst of 502/429s subside) and try each
+// failed piece one more time before giving up for good.
+const RETRY_SWEEP_PAUSE_MS = 45_000;
 
 const MALE = "http://www.wikidata.org/entity/Q6581097";
 const FEMALE = "http://www.wikidata.org/entity/Q6581072";
@@ -123,7 +127,7 @@ async function runSparql(query, label) {
           (isLast ? " — giving up on this piece." : " — retrying…")
       );
       if (isLast) return null;
-      await sleep(2000 * (attempt + 1));
+      await sleep(3000 * Math.pow(2, attempt));
     } finally {
       await sleep(PAUSE_BETWEEN_QUERIES_MS);
     }
@@ -170,32 +174,38 @@ function personQuery(qid, signal, langs, natValuesList) {
   `;
 }
 
+function absorbRowsIntoMap(map, rows) {
+  if (!rows) return;
+  for (const r of rows) {
+    const id = r.person.value.split("/").pop();
+    const existing = map.get(id) || {
+      qid: id,
+      label: r.personLabel ? r.personLabel.value : id,
+      natLabel: r.natLabel ? r.natLabel.value : "",
+      isMale: false,
+      isFemale: false,
+      sites: new Set(),
+    };
+    if (r.gender && r.gender.value === MALE) existing.isMale = true;
+    if (r.gender && r.gender.value === FEMALE) existing.isFemale = true;
+    if (r.sites && r.sites.value) {
+      r.sites.value.split("|").filter(Boolean).forEach((s) => existing.sites.add(s));
+    }
+    map.set(id, existing);
+  }
+}
+
+function pieceLabel(name, piece, totalBatches) {
+  return piece.batchIndex === null
+    ? `${name} / ${piece.signal}`
+    : `${name} / ${piece.signal} (batch ${piece.batchIndex + 1}/${totalBatches})`;
+}
+
 async function fetchCountryPeople(qid, name, localCode) {
   const langs = buildLangSet(localCode);
   const signals = ["P551", "P937", "P108"];
-  const byPerson = new Map();
-  const failedPieces = [];
-
-  function absorb(rows) {
-    if (!rows) return;
-    for (const r of rows) {
-      const id = r.person.value.split("/").pop();
-      const existing = byPerson.get(id) || {
-        qid: id,
-        label: r.personLabel ? r.personLabel.value : id,
-        natLabel: r.natLabel ? r.natLabel.value : "",
-        isMale: false,
-        isFemale: false,
-        sites: new Set(),
-      };
-      if (r.gender && r.gender.value === MALE) existing.isMale = true;
-      if (r.gender && r.gender.value === FEMALE) existing.isFemale = true;
-      if (r.sites && r.sites.value) {
-        r.sites.value.split("|").filter(Boolean).forEach((s) => existing.sites.add(s));
-      }
-      byPerson.set(id, existing);
-    }
-  }
+  const peopleMap = new Map();
+  const failedPieces = []; // { signal, batchIndex: number|null }
 
   for (const signal of signals) {
     // P108 (employer) is the one signal that reliably times out as a
@@ -209,9 +219,9 @@ async function fetchCountryPeople(qid, name, localCode) {
       const rows = await runSparql(personQuery(qid, signal, langs), label);
       if (!rows) {
         console.warn(`  [warn] skipping ${label} — no data for this signal this run.`);
-        failedPieces.push(signal);
+        failedPieces.push({ signal, batchIndex: null });
       }
-      absorb(rows);
+      absorbRowsIntoMap(peopleMap, rows);
       continue;
     }
     const batches = chunkArray(AFRICAN_NAT_LIST, NAT_BATCH_SIZE);
@@ -221,12 +231,20 @@ async function fetchCountryPeople(qid, name, localCode) {
       const rows = await runSparql(personQuery(qid, signal, langs, batches[i]), label);
       if (!rows) {
         console.warn(`  [warn] skipping ${label} — no data for this batch this run.`);
-        failedPieces.push(`${signal} batch ${i + 1}/${batches.length}`);
+        failedPieces.push({ signal, batchIndex: i });
       }
-      absorb(rows);
+      absorbRowsIntoMap(peopleMap, rows);
     }
   }
-  return { langs, people: Array.from(byPerson.values()), failedPieces };
+  return { langs, peopleMap, failedPieces };
+}
+
+async function retryPiece(qid, name, langs, piece) {
+  const batches = chunkArray(AFRICAN_NAT_LIST, NAT_BATCH_SIZE);
+  const natValuesList = piece.batchIndex === null ? undefined : batches[piece.batchIndex];
+  const label = `${pieceLabel(name, piece, batches.length)} [retry sweep]`;
+  console.log(`  retrying ${label}…`);
+  return await runSparql(personQuery(qid, piece.signal, langs, natValuesList), label);
 }
 
 // ---------- step 3: derive overview stats + gap-explorer lists in JS ----------
@@ -267,30 +285,64 @@ function summarize(qid, name, localCode, langs, people) {
 
 // ---------- main ----------
 async function main() {
+  const countryData = []; // { qid, name, localCode, langs, peopleMap, failedPieces }
+
+  for (const [qid, name, localCode] of DIASPORA_COUNTRIES) {
+    console.log(`Country: ${name}`);
+    const { langs, peopleMap, failedPieces } = await fetchCountryPeople(qid, name, localCode);
+    countryData.push({ qid, name, localCode, langs, peopleMap, failedPieces });
+    console.log(`  -> ${peopleMap.size} people so far (before any retry sweep).\n`);
+  }
+
+  const totalFailed = countryData.reduce((n, c) => n + c.failedPieces.length, 0);
+  if (totalFailed > 0) {
+    console.log(
+      `\n${totalFailed} piece(s) failed across all countries — waiting ${RETRY_SWEEP_PAUSE_MS / 1000}s ` +
+        `(letting whatever caused it subside) then retrying each one once more…\n`
+    );
+    await sleep(RETRY_SWEEP_PAUSE_MS);
+    for (const c of countryData) {
+      const stillFailed = [];
+      for (const piece of c.failedPieces) {
+        const rows = await retryPiece(c.qid, c.name, c.langs, piece);
+        if (rows) {
+          absorbRowsIntoMap(c.peopleMap, rows);
+          console.log(`  [ok] recovered ${pieceLabel(c.name, piece, Math.ceil(AFRICAN_NAT_LIST.length / NAT_BATCH_SIZE))} on retry sweep.`);
+        } else {
+          stillFailed.push(piece);
+        }
+      }
+      c.failedPieces = stillFailed;
+    }
+    console.log("");
+  }
+
   const overview = {};
   const gaps = {};
   const failedCountries = [];
   let anyPartial = false;
 
-  for (const [qid, name, localCode] of DIASPORA_COUNTRIES) {
-    console.log(`Country: ${name}`);
-    const { langs, people, failedPieces } = await fetchCountryPeople(qid, name, localCode);
+  for (const c of countryData) {
+    const people = Array.from(c.peopleMap.values());
     if (!people.length) {
-      console.warn(`  [warn] no data collected for ${name} — check warnings above.`);
-      failedCountries.push(name);
+      console.warn(`  [warn] no data collected for ${c.name} — check warnings above.`);
+      failedCountries.push(c.name);
     }
-    const { overview: ov, gaps: gp } = summarize(qid, name, localCode, langs, people);
-    ov.incomplete = failedPieces.length > 0;
-    ov.missingPieces = failedPieces;
-    overview[qid] = ov;
-    gaps[qid] = gp;
-    if (failedPieces.length) {
+    const { overview: ov, gaps: gp } = summarize(c.qid, c.name, c.localCode, c.langs, people);
+    ov.incomplete = c.failedPieces.length > 0;
+    ov.missingPieces = c.failedPieces.map((p) =>
+      pieceLabel("", p, Math.ceil(AFRICAN_NAT_LIST.length / NAT_BATCH_SIZE)).replace(/^ \/ /, "")
+    );
+    overview[c.qid] = ov;
+    gaps[c.qid] = gp;
+    if (c.failedPieces.length) {
       anyPartial = true;
       console.warn(
-        `  [warn] ${name}'s total is likely an UNDERCOUNT — ${failedPieces.length} piece(s) failed and were skipped: ${failedPieces.join(", ")}`
+        `  [warn] ${c.name}'s total is still an UNDERCOUNT after the retry sweep — ` +
+          `${c.failedPieces.length} piece(s) failed twice: ${ov.missingPieces.join(", ")}`
       );
     }
-    console.log(`  -> ${ov.total} people, ${ov.covered} covered.\n`);
+    console.log(`  -> ${c.name}: ${ov.total} people, ${ov.covered} covered (final).`);
   }
 
   const output = {
@@ -301,7 +353,7 @@ async function main() {
   };
 
   await writeFile(OUT_PATH, JSON.stringify(output, null, 2), "utf8");
-  console.log(`Done. Wrote ${OUT_PATH}`);
+  console.log(`\nDone. Wrote ${OUT_PATH}`);
   if (failedCountries.length) {
     console.warn(
       `Note: ${failedCountries.join(", ")} came back completely empty this run — re-run the script, WDQS may have been under load.`
@@ -309,7 +361,7 @@ async function main() {
   }
   if (anyPartial) {
     console.warn(
-      `Note: some countries above have "incomplete": true in the JSON — their totals are undercounts from skipped pieces, not necessarily the real number. Re-running usually recovers them.`
+      `Note: some countries above still have "incomplete": true after the retry sweep — their totals are undercounts, not necessarily the real number. A future run may recover them if WDQS is calmer.`
     );
   }
 }
